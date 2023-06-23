@@ -466,9 +466,6 @@ public Action Listener_CallVote(int client, const char[] command, int args)
 
 		int iTarget = GetClientOfUserId(StringToInt(sVoteArgument));
 
-		CPrintToChatAll("%t Client %N | sArg %s | iArgs %d | Target %d | cmd %s", "Tag", client, sVoteArgument, StringToInt(sVoteArgument), iTarget, command);
-		CPrintToChatAll("%t args %d | %s", "Tag", sizeof(args), args);
-
 		if (args != 2 || iTarget == CONSOLE)
 			return Plugin_Continue;
 
