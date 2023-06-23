@@ -1,0 +1,11 @@
+"Phrases"
+{
+	"KickReached"
+	{
+		"es"		"Se alcanzado el límite de llamadas para {green}expulsar{default} ({red}%d{default}/{olive}%d{default})"
+	}
+	"KickLimit"
+	{
+		"es"		"Su límite de llamadas para {green}expulsar{default} es de ({olive}%d{default}/{olive}%d{default})"
+	}
+}

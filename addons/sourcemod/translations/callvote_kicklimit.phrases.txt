@@ -1,0 +1,15 @@
+"Phrases"
+{
+	"Tag"
+	{
+		"en"		"[{olive}CallVote{default}]"
+	}
+	"KickReached"
+	{
+		"en"		"The limit for {green}kicking{default} calls has been reached ({red}%d{default}/{olive}%d{default})"
+	}
+	"KickLimit"
+	{
+		"en"		"Your call limit to {green}kick{default} is ({olive}%d{default}/{olive}%d{default})"
+	}
+}
