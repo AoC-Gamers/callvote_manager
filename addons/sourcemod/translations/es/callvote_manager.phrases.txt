@@ -26,7 +26,11 @@
 	}
 	"ChangeChapter"
 	{
-		"es"		"{green}%N{default} llamó votación para {olive}cambiar Voz Global{default}"
+		"es"		"{green}%N{default} llamó votación para {olive}cambiar el capitulo{default}: {blue}%s{default}"
+	}
+	"ChangeAllTalk"
+	{
+		"es"		"{green}%N{default} llamó votación para {olive}cambiar AllTalk{default}"
 	}
     "VoteDisabled"
     {

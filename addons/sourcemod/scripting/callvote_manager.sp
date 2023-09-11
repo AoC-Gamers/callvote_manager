@@ -649,6 +649,7 @@ public Action Listener_CallVote(int client, const char[] command, int args)
 
 		if (g_cvarSQL.IntValue & VOTE_CHANGEALLTALK)
 			sqllog(ChangeAllTalk, client);
+
 		announcer("%t", "ChangeAllTalk", client);
 	}
 

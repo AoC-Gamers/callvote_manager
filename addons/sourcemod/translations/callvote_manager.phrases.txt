@@ -30,6 +30,10 @@
 	}
 	"ChangeChapter"
 	{
+		"en"		"{green}%N{default} called vote for {olive}change chapter{default}: {blue}%s{default}"
+	}
+	"ChangeAllTalk"
+	{
 		"en"		"{green}%N{default} called vote for {olive}change AllTalk{default}"
 	}
     "VoteDisabled"
