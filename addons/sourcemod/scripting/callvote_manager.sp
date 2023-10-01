@@ -11,7 +11,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION		  "1.0"
+#define PLUGIN_VERSION		  "1.1"
 #define DIR_CALLVOTE		  "logs/callvote.log"
 #define CONSOLE				  0
 #define MAX_REASON_LENGTH	  512
@@ -490,6 +490,8 @@ public Action Listener_CallVote(int client, const char[] command, int args)
 		if (!IsFlagC(client) && (IsAdmin(iTarget) || IsVip(iTarget)))
 		{
 			CPrintToChat(client, "%t %t", "Tag", "Inmunity");
+			CPrintToChat(iTarget, "%t %t", "Tag", "InmunityTarget", client);
+
 			return Plugin_Handled;
 		}
 

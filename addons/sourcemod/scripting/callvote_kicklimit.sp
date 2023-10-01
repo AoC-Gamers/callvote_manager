@@ -9,7 +9,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION	  "1.0"
+#define PLUGIN_VERSION	  "1.1"
 #define CONSOLE			  0
 #define MAX_AUTHID_LENGTH 64 /**< Maximum buffer required to store any AuthID type */
 #define DIR_CALLVOTE	  "logs/callvote.log"
@@ -192,11 +192,12 @@ public void OnClientAuthorized(int iClient, const char[] sAuth)
 		return;
 
 	g_Players[iClient].Client = iClient;
-	Format(g_Players[iClient].Steamid, MAX_AUTHID_LENGTH, sAuth);
+	strcopy(g_Players[iClient].Steamid, MAX_AUTHID_LENGTH, sAuth);
 	g_Players[iClient].Kick	  = 0;
 	g_Players[iClient].Target = 0;
 
-	GetCountKick(hGetKick, iClient, sAuth);
+	if(g_cvarSQL.BoolValue)
+		GetCountKick(hGetKick, iClient, sAuth);
 }
 
 /**
@@ -209,10 +210,7 @@ public void OnClientAuthorized(int iClient, const char[] sAuth)
 public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
 {
 	if (iVotes != Kick)
-	{
-		g_Caller.IsKick = false;
 		return;
-	}
 
 	if (g_cvarKickLimit.IntValue <= g_Players[iClient].Kick)
 	{
@@ -242,15 +240,17 @@ public Action Message_VotePass(UserMsg msg_id, BfRead bf, const int[] players, i
 	if (!g_Caller.IsKick)
 		return Plugin_Continue;
 
-	g_Players[g_Caller.Client].Kick++;
-	sqlinsert(g_Caller.Client, g_Players[g_Caller.Client].Target);
+	int iClient = g_Caller.Client;
 
-	if (g_Players[g_Caller.Client].Target != g_Caller.Client)
-		CPrintToChat(g_Caller.Client, "%s %t", "Tag", "KickLimit", g_Players[g_Caller.Client].Kick, g_cvarKickLimit.IntValue);
+	g_Players[iClient].Kick++;
+	sqlinsert(iClient, g_Players[iClient].Target);
 
-	g_Players[g_Caller.Client].Target = 0;
-	g_Caller.Client					  = 0;
-	g_Caller.IsKick					  = false;
+	if (g_Players[iClient].Target != iClient && IsValidClient(iClient))
+		CPrintToChat(iClient, "%s %t", "Tag", "KickLimit", g_Players[iClient].Kick, g_cvarKickLimit.IntValue);
+
+	g_Players[iClient].Target	= 0;
+	g_Caller.Client				= 0;
+	g_Caller.IsKick				= false;
 	return Plugin_Continue;
 }
 

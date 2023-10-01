@@ -52,6 +52,10 @@
     {
         "es"        "No puedes {red}expulsar{default} a este jugador"
     }
+    "InmunityTarget"
+    {
+        "es"        "%N Intento {red}expulsarte{default}"
+    }
     "SpecVote"
     {
         "es"        "No puedes llamar una votación mientras estás {olive}especteando{default}"

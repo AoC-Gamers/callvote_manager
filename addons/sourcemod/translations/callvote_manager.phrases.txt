@@ -56,6 +56,10 @@
     {
         "en"        "You can't {red}kick{default} this player"
     }
+    "InmunityTarget"
+    {
+        "en"        "%N tried to {red}kick{default} you"
+    }
     "SpecVote"
     {
         "en"        "You can't call a vote while you are {olive}spectating{default}"
