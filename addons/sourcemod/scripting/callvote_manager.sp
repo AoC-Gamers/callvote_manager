@@ -275,8 +275,8 @@ public void
 	// ConVar that refer to the kick vote call
 	g_cvarKick			= CreateConVar("sm_cvm_kick", "1", "Enable vote Kick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarBanDuration	= CreateConVar("sm_cvm_banduration", "-1", "How long should a kick vote ban someone from the server? (in minutes). -1 Default", FCVAR_NOTIFY, true, -1.0);
-	g_cvarAdminInmunity = CreateConVar("sm_cvm_admininmunity", "", "Admins are immune to kick votes. Specify admin flags or blank. Not immune to kick flag", FCVAR_NOTIFY);
-	g_cvarVipInmunity	= CreateConVar("sm_cvm_vipinmunity", "", "Vips are immune to kick votes, Specify admin flags or blank. Not immune to kick flag", FCVAR_NOTIFY);
+	g_cvarAdminInmunity = CreateConVar("sm_cvm_admininmunity", "", "Admins are immune to kick votes. Specify admin flags or blank.", FCVAR_NOTIFY);
+	g_cvarVipInmunity	= CreateConVar("sm_cvm_vipinmunity", "", "Vips are immune to kick votes, Specify admin flags or blank.", FCVAR_NOTIFY);
 	g_cvarSTVInmunity	= CreateConVar("sm_cvm_stvinmunity", "1", "SourceTV is immune to votekick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarSelfInmunity	= CreateConVar("sm_cvm_selfinmunity", "1", "Immunity to self-kick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarBotInmunity	= CreateConVar("sm_cvm_botinmunity", "1", "Immunity to bots", FCVAR_NOTIFY, true, 0.0, true, 1.0);
