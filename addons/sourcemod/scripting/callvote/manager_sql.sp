@@ -39,7 +39,7 @@ ConVar g_cvarSQL;
 
 public void OPS_SQL()
 {
-	g_cvarSQL = CreateConVar("sm_cvm_sql", "0", "Enable SQL logging flags", FCVAR_NOTIFY, true, 0.0, true, 127.0);
+	g_cvarSQL = CreateConVar("sm_cvm_sql", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
 	RegServerCmd("sm_cvm_createsql", Command_CreateSQL, "Create SQL tables for CallVoteManager");
 }
 
@@ -52,7 +52,7 @@ Database Connect()
 		db = SQL_Connect("callvote", true, sError, sizeof(sError));
 
 	if (db == null)
-		log("Could not connect to database: %s", sError);
+		log(false, "Could not connect to database: %s", sError);
 
 	return db;
 }
@@ -80,14 +80,14 @@ Action Command_CreateSQL(int args)
 	{
 		char sError[255];
 		SQL_GetError(db, sError, sizeof(sError));
-		log("Query failed: %s", sError);
-		log("Query dump: %s", sQuery);
+		log(false, "Query failed: %s", sError);
+		log(false, "Query dump: %s", sQuery);
 		CReplyToCommand(CONSOLE, "%t Failed to query database", "Tag");
 		return Plugin_Handled;
 	}
 
 	CReplyToCommand(CONSOLE, "%t Tables have been created.", "Tag");
-	log("%t Tables have been created.", "Tag");
+	log(false, "%t Tables have been created.", "Tag");
 
 	delete db;
 	return Plugin_Handled;
@@ -101,7 +101,7 @@ bool sqllog(TypeVotes type, int client, int target = 0)
 	Database db = Connect();
 	if (db == null)
 	{
-		log("Could not connect to database");
+		log(false, "Could not connect to database");
 		return false;
 	}
 
@@ -124,39 +124,11 @@ bool sqllog(TypeVotes type, int client, int target = 0)
 	{
 		char sError[255];
 		SQL_GetError(db, sError, sizeof(sError));
-		log("Query failed: %s", sError);
-		log("Query dump: %s", sQuery);
+		log(false, "Query failed: %s", sError);
+		log(false, "Query dump: %s", sQuery);
 		return false;
 	}
 
 	delete db;
 	return true;
 }
-
-/*
-	Format(sQuery, sizeof(sQuery), "CREATE TABLE IF NOT EXISTS `callvote_bans` ( \
-		`bid` int(6) NOT NULL auto_increment, \
-		`ip` varchar(32) default NULL, \
-		`authid` varchar(64) character set utf8 NOT NULL default '', \
-		`name` varchar(128) character set utf8 NOT NULL default 'unnamed', \
-		`created` int(11) NOT NULL default '0', \
-		`ends` int(11) NOT NULL default '0', \
-		`length` int(10) NOT NULL default '0', \
-		`reason` text character set utf8 NOT NULL, \
-		`aid` int(6) NOT NULL default '0', \
-		`adminIp` varchar(32) NOT NULL default '', \
-		`sid` int(6) NOT NULL default '0', \
-		`country` varchar(4) default NULL, \
-		`RemovedBy` int(8) NULL, \
-		`RemoveType` VARCHAR(3) NULL, \
-		`RemovedOn` int(10) NULL, \
-		`type` TINYINT NOT NULL DEFAULT '0', \
-		`ureason` text, \
-		PRIMARY KEY(`bid`), \
-		KEY `sid` (`sid`), \
-		FULLTEXT KEY `reason` (`reason`), \
-		FULLTEXT KEY `authid_2` (`authid`), \
-		KEY `type_authid` (`type`,`authid`), \
-		KEY `type_ip` (`type`,`ip`)) \
-		ENGINE = InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci");
-*/
