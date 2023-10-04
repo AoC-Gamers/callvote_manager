@@ -11,7 +11,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION		  "1.1"
+#define PLUGIN_VERSION		  "1.2"
 #define DIR_CALLVOTE		  "logs/callvote.log"
 #define CONSOLE				  0
 #define MAX_REASON_LENGTH	  512
