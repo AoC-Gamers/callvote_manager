@@ -1,4 +1,4 @@
-# Call Vote
+# Call Vote Manager
 [EN] [translation](https://translate.google.com/translate?sl=es&tl=en&u=https://github.com/lechuga16/callvote_manager)
 
 Es un complemento modular que permite la administración de llamadas a votaciones, está enfocado a L4D2.
