@@ -46,6 +46,7 @@ ConVar
 	sv_vote_issue_change_mission_allowed,
 	sv_vote_kick_ban_duration,
 	sv_vote_creation_timer,
+	sv_vote_timer_duration,
 
 	z_difficulty;
 
@@ -77,6 +78,10 @@ public void OPS_ConVar()
 	g_cvarCreationTimer.AddChangeHook(ConVarChanged_CreationTimer);
 	sv_vote_creation_timer = FindConVar("sv_vote_creation_timer");
 	sv_vote_creation_timer.AddChangeHook(ConVarChanged_CreationTimer);
+
+	g_cvarVoteDuration.AddChangeHook(ConVarChanged_VoteDuration);
+	sv_vote_timer_duration = FindConVar("sv_vote_timer_duration");
+	sv_vote_timer_duration.AddChangeHook(ConVarChanged_VoteDuration);
 
 	z_difficulty = FindConVar("z_difficulty");
 }
@@ -212,6 +217,21 @@ public void ConVarChanged_CreationTimer(Handle hConVar, const char[] sOldValue, 
 }
 
 /**
+ * Replicates the value change of the ConVar Difficulty
+ * @param hConVar ConVar handle
+ * @param sOldValue Old value
+ * @param sNewValue New value
+ * @noreturn
+ */
+public void ConVarChanged_VoteDuration(Handle hConVar, const char[] sOldValue, const char[] sNewValue)
+{
+	if (g_cvarVoteDuration.IntValue > -1 && (g_cvarVoteDuration.IntValue != sv_vote_timer_duration.IntValue))
+		sv_vote_timer_duration.SetInt(g_cvarVoteDuration.IntValue);
+	else if (g_cvarVoteDuration.IntValue == -1)
+		sv_vote_timer_duration.RestoreDefault();
+}
+
+/**
  * Applies ConVars after they are loaded from autoexec
  * @noreturn
  */
@@ -254,6 +274,11 @@ public void ApplyConVars()
 
 	if (g_cvarCreationTimer.IntValue > -1 && (g_cvarCreationTimer.IntValue != sv_vote_creation_timer.IntValue))
 		sv_vote_creation_timer.SetInt(g_cvarCreationTimer.IntValue);
+
+	if (g_cvarVoteDuration.IntValue > -1 && (g_cvarVoteDuration.IntValue != sv_vote_timer_duration.IntValue))
+		sv_vote_timer_duration.SetInt(g_cvarVoteDuration.IntValue);
+	else if (g_cvarVoteDuration.IntValue == -1)
+		sv_vote_timer_duration.RestoreDefault();
 
 	char
 		sTempAdmin[32],

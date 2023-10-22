@@ -12,4 +12,24 @@
 	{
 		"en"		"Your call limit to {green}kick{default} is ({olive}%d{default}/{olive}%d{default})"
 	}
+	"KickLimitTarget"
+	{
+		"en"		"The call limit for ({olive}%s{default}) for {green}kick{default} is ({olive}%d{default}/{olive}%d{default})"
+	}
+	"PluginDisabled"
+	{
+		"en"		"Plugin is {red}disabled{default}"
+	}
+	"Usage"
+	{
+		"en"		"Usage:"
+	}
+	"KickShow"
+	{
+		"en"		"{blue}%N{default} ({olive}%s{default}) | Kick: {olive}%d{default}"
+	}
+	"NoFound"
+	{
+		"en"		"There are {red}no registered{default} kicks"
+	}
 }

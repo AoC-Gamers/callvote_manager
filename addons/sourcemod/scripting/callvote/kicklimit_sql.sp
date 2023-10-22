@@ -41,8 +41,8 @@ Database	hGetKick;
 
 public void OPS_SQL()
 {
-	g_cvarSQL = CreateConVar("sm_cvkl_sql", "0", "Enable SQL logging flags", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	RegServerCmd("sm_cvkl_createsql", Command_CreateSQL, "Create SQL tables for CallVoteManager");
+	g_cvarSQL = CreateConVar("sm_cvkl_sql", "0", "Enables kick counter registration to the database, if disabled it uses local memory.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	RegServerCmd("sm_cvkl_createsql", Command_CreateSQL, "Create SQL tables for CallVote KickLimit");
 
 	hGetKick = Connect();
 	if (hGetKick == null)
@@ -133,11 +133,11 @@ bool sqlinsert(int iClient, int iTarget)
 	return true;
 }
 
-int GetCountKick(Database hDataBase, int iClient, const char[] sSteamID)
+bool GetCountKick(Database hDataBase, int iClient, const char[] sSteamID)
 {
-	char error[255]
+	char error[255];
 
-		/* Check if we haven't already created the statement */
+	/* Check if we haven't already created the statement */
 	if (hPrepareQuery == null)
 	{
 		hPrepareQuery = SQL_PrepareQuery(hDataBase, "SELECT COUNT(*) FROM callvote_kicklimit WHERE created >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY)) AND authid = ?", error, sizeof(error));
@@ -151,7 +151,7 @@ int GetCountKick(Database hDataBase, int iClient, const char[] sSteamID)
 	hPrepareQuery.BindString(0, sSteamID, false);
 	if (!SQL_Execute(hPrepareQuery))
 	{
-		SQL_GetError(hPrepareQuery, error, sizeof(error))
+		SQL_GetError(hPrepareQuery, error, sizeof(error));
 		log("Failed to execute query: %s", error);
 		return false;
 	}

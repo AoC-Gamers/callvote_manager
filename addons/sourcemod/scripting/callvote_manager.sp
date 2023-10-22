@@ -11,7 +11,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION		  "1.2"
+#define PLUGIN_VERSION		  "1.3"
 #define DIR_CALLVOTE		  "logs/callvote.log"
 #define CONSOLE				  0
 #define MAX_REASON_LENGTH	  512
@@ -102,6 +102,7 @@ ConVar
 	g_cvarSpecVote,
 	g_cvarAnnouncer,
 	g_cvarCreationTimer,
+	g_cvarVoteDuration,
 
 	g_cvarDifficulty,
 	g_cvarRestart,
@@ -252,8 +253,7 @@ public Plugin myinfo =
  * If any run-time error is thrown during this callback, the plugin will be marked
  * as failed.
  */
-public void
-	OnPluginStart()
+public void OnPluginStart()
 {
 	LoadTranslation("callvote_manager.phrases");
 	CreateConVar("sm_cvm_version", PLUGIN_VERSION, "Plugin version", FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD);
@@ -264,6 +264,7 @@ public void
 	g_cvarSpecVote		= CreateConVar("sm_cvm_specvote", "0", "Allow spectators to call vote", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarAnnouncer		= CreateConVar("sm_cvm_announcer", "1", "Announce voting calls", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarCreationTimer = CreateConVar("sm_cvm_creationtimer", "-1", "How often someone can individually call a vote. -1 Default", FCVAR_NOTIFY, true, -1.0);
+	g_cvarVoteDuration	= CreateConVar("sm_cvm_voteduration", "-1", "How long to allow voting on an issue. -1 Default", FCVAR_NOTIFY, true, -1.0);
 
 	g_cvarDifficulty	= CreateConVar("sm_cvm_difficulty", "1", "Enable vote ChangeDifficulty", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarRestart		= CreateConVar("sm_cvm_restart", "1", "Enable vote RestartGame", FCVAR_NOTIFY, true, 0.0, true, 1.0);
@@ -466,10 +467,7 @@ public Action Listener_CallVote(int client, const char[] command, int args)
 			return Plugin_Continue;	   // it is disabled by sv_vote_issue_kick_allowed
 		}
 
-		int iTarget = GetClientOfUserId(StringToInt(sVoteArgument));
-
-		if (args != 2 || iTarget == CONSOLE)
-			return Plugin_Continue;
+		int iTarget = GetClientOfUserId(GetCmdArgInt(2));
 
 		if (g_cvarSTVInmunity.BoolValue && IsClientConnected(client) && IsClientSourceTV(iTarget))
 		{
@@ -493,7 +491,6 @@ public Action Listener_CallVote(int client, const char[] command, int args)
 		{
 			CPrintToChat(client, "%t %t", "Tag", "Inmunity");
 			CPrintToChat(iTarget, "%t %t", "Tag", "InmunityTarget", client);
-
 			return Plugin_Handled;
 		}
 

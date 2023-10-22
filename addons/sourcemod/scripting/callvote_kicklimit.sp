@@ -9,7 +9,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION	  "1.1"
+#define PLUGIN_VERSION	  "1.2"
 #define CONSOLE			  0
 #define MAX_AUTHID_LENGTH 64 /**< Maximum buffer required to store any AuthID type */
 #define DIR_CALLVOTE	  "logs/callvote.log"
@@ -20,7 +20,6 @@
  */
 enum struct PlayerInfo
 {
-	int	 Client;						// client index
 	char Steamid[MAX_AUTHID_LENGTH];	// Player SteamID
 	int	 Kick;							// kick voting call amount
 	int	 Target;						// Target kicked
@@ -28,26 +27,12 @@ enum struct PlayerInfo
 
 PlayerInfo g_Players[MAXPLAYERS + 1];
 
-/**
- * Caller profile.
- *
- */
-enum struct ClientCaller
-{
-	int	 Client;
-	bool IsKick;
-}
-
-ClientCaller g_Caller = { 0, false };
-
-char		 sLogPath[PLATFORM_MAX_PATH];
+int		   g_iCaller = 0;
+char	   sLogPath[PLATFORM_MAX_PATH];
 
 ConVar
 	g_cvarEnable,
-	g_cvarKickLimit,
-	g_cvarVoteDuration,
-
-	sv_vote_timer_duration;
+	g_cvarKickLimit;
 
 EngineVersion g_iEngine;
 
@@ -102,6 +87,8 @@ public Plugin myinfo =
 	description = "Limits the amount of callvote kick",
 	version		= PLUGIN_VERSION,
 	url			= "https://github.com/lechuga16/callvote_manager"
+
+
 }
 
 /*****************************************************************
@@ -119,15 +106,13 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
 	LoadTranslation("callvote_kicklimit.phrases");
+	LoadTranslation("common.phrases");
 	CreateConVar("sm_cvkl_version", PLUGIN_VERSION, "Plugin version", FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD);
 
-	g_cvarEnable	   = CreateConVar("sm_cvkl_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarKickLimit	   = CreateConVar("sm_cvkl_kicklimit", "1", "Kick limit", FCVAR_NOTIFY, true, 0.0);
-	g_cvarVoteDuration = CreateConVar("sm_cvkl_voteduration", "-1", "How long to allow voting on an issue. -1 Default", FCVAR_NOTIFY, true, -1.0);
-
-	g_cvarVoteDuration.AddChangeHook(ConVarChanged_VoteDuration);
-	sv_vote_timer_duration = FindConVar("sv_vote_timer_duration");
-	sv_vote_timer_duration.AddChangeHook(ConVarChanged_VoteDuration);
+	g_cvarEnable	= CreateConVar("sm_cvkl_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarKickLimit = CreateConVar("sm_cvkl_kicklimit", "1", "Kick limit", FCVAR_NOTIFY, true, 0.0);
+	RegAdminCmd("sm_kickshow", Command_KickShow, ADMFLAG_KICK,"Shows a list of all local kick records");
+	RegConsoleCmd("sm_kicklimit", Command_KickCount, "Shows the number of kicks saved locally");
 
 	HookUserMessage(GetUserMessageId("VotePass"), Message_VotePass);
 	HookUserMessage(GetUserMessageId("VoteFail"), Message_VoteFail);
@@ -136,9 +121,7 @@ public void OnPluginStart()
 	BuildPath(Path_SM, sLogPath, sizeof(sLogPath), DIR_CALLVOTE);
 
 	OPS_SQL();
-
 	AutoExecConfig(true, "callvote_kicklimit");
-	ApplyConVars();
 
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsClientConnected(i))
@@ -147,33 +130,6 @@ public void OnPluginStart()
 			GetClientAuthId(i, AuthId_Engine, sSteamId, MAX_AUTHID_LENGTH);
 			OnClientAuthorized(i, sSteamId);
 		}
-}
-
-/**
- * Replicates the value change of the ConVar Difficulty
- * @param hConVar ConVar handle
- * @param sOldValue Old value
- * @param sNewValue New value
- * @noreturn
- */
-public void ConVarChanged_VoteDuration(Handle hConVar, const char[] sOldValue, const char[] sNewValue)
-{
-	if (g_cvarVoteDuration.IntValue > -1 && (g_cvarVoteDuration.IntValue != sv_vote_timer_duration.IntValue))
-		sv_vote_timer_duration.SetInt(g_cvarVoteDuration.IntValue);
-	else if (g_cvarVoteDuration.IntValue == -1)
-		sv_vote_timer_duration.RestoreDefault();
-}
-
-/**
- * Applies ConVars after they are loaded from autoexec
- * @noreturn
- */
-public void ApplyConVars()
-{
-	if (g_cvarVoteDuration.IntValue > -1 && (g_cvarVoteDuration.IntValue != sv_vote_timer_duration.IntValue))
-		sv_vote_timer_duration.SetInt(g_cvarVoteDuration.IntValue);
-	else if (g_cvarVoteDuration.IntValue == -1)
-		sv_vote_timer_duration.RestoreDefault();
 }
 
 /**
@@ -191,13 +147,49 @@ public void OnClientAuthorized(int iClient, const char[] sAuth)
 	if (!g_cvarEnable.BoolValue || IsFakeClient(iClient))
 		return;
 
-	g_Players[iClient].Client = iClient;
+	if (g_cvarSQL.BoolValue)
+	{
+		if (!GetCountKick(hGetKick, iClient, sAuth))
+			IsNewClient(iClient, sAuth);
+	}
+	else
+	{
+		if (!IsClientRegistred(iClient, sAuth))
+			IsNewClient(iClient, sAuth);
+	}
+}
+
+void IsNewClient(int iClient, const char[] sAuth)
+{
 	strcopy(g_Players[iClient].Steamid, MAX_AUTHID_LENGTH, sAuth);
 	g_Players[iClient].Kick	  = 0;
 	g_Players[iClient].Target = 0;
+}
 
-	if(g_cvarSQL.BoolValue)
-		GetCountKick(hGetKick, iClient, sAuth);
+bool IsClientRegistred(int iClient, const char[] sAuth)
+{
+	for (int i = 1; i <= MAXPLAYERS; i++)
+	{
+		if(!g_Players[i].Kick)
+			continue;
+
+		if (StrEqual(g_Players[i].Steamid, sAuth, false))
+		{
+			if(i == iClient )
+				return true;
+			// Move the customer's saved data to their new ID
+			strcopy(g_Players[iClient].Steamid, MAX_AUTHID_LENGTH, sAuth);
+			g_Players[iClient].Kick	  = g_Players[i].Kick;
+			g_Players[iClient].Target = 0;
+
+			// Clear the old ID
+			strcopy(g_Players[i].Steamid, MAX_AUTHID_LENGTH, "");
+			g_Players[i].Kick	= 0;
+			g_Players[i].Target = 0;
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -220,8 +212,7 @@ public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
 		return;
 	}
 
-	g_Caller.Client			  = iClient;
-	g_Caller.IsKick			  = true;
+	g_iCaller				  = iClient;
 	g_Players[iClient].Target = iTarget;
 	return;
 }
@@ -235,22 +226,26 @@ public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
  *			string	details	Vote success translation string
  *			string	param1	Vote winner
  */
-public Action Message_VotePass(UserMsg msg_id, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
+public Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
 {
-	if (!g_Caller.IsKick)
-		return Plugin_Continue;
+	char sIssue[128];
+	hBf.ReadString(sIssue, 128);
 
-	int iClient = g_Caller.Client;
+	if (strcmp(sIssue, "#L4D_vote_kick_player"))
+	{
+		char sParam1[128];
+		hBf.ReadString(sParam1, 128);
 
-	g_Players[iClient].Kick++;
-	sqlinsert(iClient, g_Players[iClient].Target);
+		g_Players[g_iCaller].Kick++;
 
-	if (g_Players[iClient].Target != iClient && IsValidClient(iClient))
-		CPrintToChat(iClient, "%s %t", "Tag", "KickLimit", g_Players[iClient].Kick, g_cvarKickLimit.IntValue);
+		if (g_cvarSQL.BoolValue)
+			sqlinsert(g_iCaller, g_Players[g_iCaller].Target);
 
-	g_Players[iClient].Target	= 0;
-	g_Caller.Client				= 0;
-	g_Caller.IsKick				= false;
+		CPrintToChat(g_iCaller, "%t %t", "Tag", "KickLimit", g_Players[g_iCaller].Kick, g_cvarKickLimit.IntValue);
+
+		g_Players[g_iCaller].Target = 0;
+	}
+
 	return Plugin_Continue;
 }
 
@@ -261,13 +256,80 @@ public Action Message_VotePass(UserMsg msg_id, BfRead bf, const int[] players, i
  *	Structure:
  *			byte	team	Team index or 255 for all
  */
-public Action Message_VoteFail(UserMsg msg_id, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
+public Action Message_VoteFail(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
 {
-	if (!g_Caller.IsKick)
-		return Plugin_Continue;
+	char sIssue[128];
+	hBf.ReadString(sIssue, 128);
 
-	g_Caller.Client = 0;
+	if (strcmp(sIssue, "#L4D_vote_kick_player"))
+		g_Players[g_iCaller].Target = 0;
+
 	return Plugin_Continue;
+}
+
+Action Command_KickCount(int iClient, int sArgs)
+{
+	if (!g_cvarEnable.BoolValue)
+	{
+		CPrintToChat(iClient, "%t %t", "Tag", "PluginDisabled");
+		return Plugin_Handled;
+	}
+
+	if (sArgs < 1)
+	{
+		CPrintToChat(iClient, "%t %t sm_kicklimit <#userid|name>", "Tag", "Usage");
+		return Plugin_Handled;
+	}
+
+	char sArguments[256];
+	GetCmdArgString(sArguments, sizeof(sArguments));
+
+	char sArg[65];
+	BreakString(sArguments, sArg, sizeof(sArg));
+
+	char sTargetName[MAX_TARGET_LENGTH];
+	int	 sTargetList[MAXPLAYERS], sTargetCount;
+	bool bTnIsMl;
+	int iFlags = COMMAND_FILTER_CONNECTED | COMMAND_FILTER_NO_BOTS | COMMAND_FILTER_NO_MULTI;
+
+	if ((sTargetCount = ProcessTargetString(sArg, iClient, sTargetList, MAXPLAYERS, iFlags, sTargetName, sizeof(sTargetName), bTnIsMl)) > 0)
+	{
+		for (int i = 0; i < sTargetCount; i++)
+		{
+			if (sTargetList[i] == iClient)
+				CPrintToChat(iClient, "%t %t", "Tag", "KickLimit", g_Players[iClient].Kick, g_cvarKickLimit.IntValue);
+			else
+				CPrintToChat(iClient, "%t %t", "Tag", "KickLimitTarget", sTargetName, g_Players[sTargetList[i]].Kick, g_cvarKickLimit.IntValue);
+		}
+	}
+	else
+		ReplyToTargetError(iClient, sTargetCount);
+
+	return Plugin_Handled;
+}
+
+Action Command_KickShow(int iClient, int sArgs)
+{
+	char sAuth[32];
+	GetClientAuthId(iClient, AuthId_Steam2, sAuth, sizeof(sAuth));
+
+	int iFound = 0;
+	for (int i = 1; i <= MAXPLAYERS; i++)
+	{
+		if(!g_Players[i].Kick)
+			continue;
+
+		if (StrEqual(g_Players[i].Steamid, sAuth))
+		{
+			iFound++;
+			CPrintToChat(iClient, "%t %t", "Tag", "KickShow", i, g_Players[i].Steamid, g_Players[i].Kick);
+		}
+	}
+
+	if (!iFound)
+		CPrintToChat(iClient, "%t %t", "Tag", "NoFound");
+
+	return Plugin_Handled;
 }
 
 /**

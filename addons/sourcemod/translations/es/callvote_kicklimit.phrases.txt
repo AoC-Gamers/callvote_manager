@@ -8,4 +8,24 @@
 	{
 		"es"		"Su límite de llamadas para {green}expulsar{default} es de ({olive}%d{default}/{olive}%d{default})"
 	}
+	"KickLimitTarget"
+	{
+		"es"		"El límite de llamadas de ({olive}%s{default}) para {green}expulsar{default} es de ({olive}%d{default}/{olive}%d{default})"
+	}
+	"PluginDisabled"
+	{
+		"es"		"El plugin está {red}desactivado{default}"
+	}
+	"Usage"
+	{
+		"es"		"Uso:"
+	}
+	"KickShow"
+	{
+		"es"		"{blue}%N{default} ({olive}%s{default}) | Kick: {olive}%d{default}"
+	}
+	"NoFound"
+	{
+		"es"		"{red}No existen{default} kicks registrados"
+	}
 }
