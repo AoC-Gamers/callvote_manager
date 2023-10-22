@@ -30,10 +30,10 @@
  * Version: $Id$
  */
 
-#if defined _callvotemanager_sql_included
+#if defined _callvotekicklimit_sql_included
 	#endinput
 #endif
-#define _callvotemanager_sql_included
+#define _callvotekicklimit_sql_included
 
 ConVar		g_cvarSQL;
 DBStatement hPrepareQuery = null;
