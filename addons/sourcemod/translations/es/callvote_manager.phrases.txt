@@ -132,4 +132,32 @@
 	{
 		"es"		"Es la misma dificultad"
 	}
+	"L4D2Team_Survivor"
+	{
+		"es"		"Sobreviviente"
+	}
+	"L4D2Team_Infected"
+	{
+		"es"		"Infectado"
+	}
+	"L4D2Team_Spectator"
+	{
+		"es"		"Espectador"
+	}
+	"L4D2Team_L4D1_Survivor"
+	{
+		"es"		"Sobreviviente de L4D1"
+	}
+	"L4D2Team_None"
+	{
+		"es"		"Ninguno"
+	}
+	"VoteCastAnon"
+	{
+		"es"		"Un {olive}%s{default}: %s"
+	}
+	"VoteCast"
+	{
+		"es"		"{green}%N{default} del equipo {olive}%s{default}: %s"
+	}
 }

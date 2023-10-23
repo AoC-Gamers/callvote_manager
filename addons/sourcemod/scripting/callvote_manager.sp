@@ -27,6 +27,17 @@
 #define VOTE_CHANGECHAPTER	  (1 << 5)	  // 32
 #define VOTE_CHANGEALLTALK	  (1 << 6)	  // 64
 
+enum /*L4D2_Team*/
+{
+	L4D2Team_None = 0,
+	L4D2Team_Spectator,
+	L4D2Team_Survivor,
+	L4D2Team_Infected,
+	L4D2Team_L4D1_Survivor,	   // Used for maps where there are survivors from the first chapter and from the second, for example c7m3_port
+
+	L4D2Team_Size	 // 5 size
+};
+
 enum TypeVotes
 {
 	ChangeDifficulty = 0,
@@ -85,22 +96,14 @@ char sCampaignCode[CampaignCode_size][] = {
 	"l4d2c13"
 };
 
-enum L4D2_Team
-{
-	L4D2Team_None	   = 0,
-	L4D2Team_Spectator = 1,
-	L4D2Team_Survivor  = 2,
-	L4D2Team_Infected  = 3,
-
-	L4D2Team_Size	   = 4
-};
-
 ConVar
 	g_cvarDebug,
 	g_cvarlog,
 	g_cvarBuiltinVote,
 	g_cvarSpecVote,
 	g_cvarAnnouncer,
+	g_cvarProgress,
+	g_cvarProgressAnony,
 	g_cvarCreationTimer,
 	g_cvarVoteDuration,
 
@@ -253,7 +256,8 @@ public Plugin myinfo =
  * If any run-time error is thrown during this callback, the plugin will be marked
  * as failed.
  */
-public void OnPluginStart()
+public void
+	OnPluginStart()
 {
 	LoadTranslation("callvote_manager.phrases");
 	CreateConVar("sm_cvm_version", PLUGIN_VERSION, "Plugin version", FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD);
@@ -263,6 +267,8 @@ public void OnPluginStart()
 	g_cvarBuiltinVote	= CreateConVar("sm_cvm_builtinvote", "1", "<builtinvotes> support", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarSpecVote		= CreateConVar("sm_cvm_specvote", "0", "Allow spectators to call vote", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarAnnouncer		= CreateConVar("sm_cvm_announcer", "1", "Announce voting calls", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarProgress		= CreateConVar("sm_cvm_progress", "1", "Show voting progress", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarProgressAnony = CreateConVar("sm_cvm_progressanony", "0", "Show voting progress anonymously", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarCreationTimer = CreateConVar("sm_cvm_creationtimer", "-1", "How often someone can individually call a vote. -1 Default", FCVAR_NOTIFY, true, -1.0);
 	g_cvarVoteDuration	= CreateConVar("sm_cvm_voteduration", "-1", "How long to allow voting on an issue. -1 Default", FCVAR_NOTIFY, true, -1.0);
 
@@ -285,14 +291,24 @@ public void OnPluginStart()
 	OPS_ConVar();
 	OPS_SQL();
 
+	RegConsoleCmd("sm_test", Command_test, "Show client index");
+
 	// Listen when a user issues a voting call
 	AddCommandListener(Listener_CallVote, "callvote");
+	HookEvent("vote_cast_yes", Event_VoteCastYes);
+	HookEvent("vote_cast_no", Event_VoteCastNo);
 
 	// Build log path
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 
 	AutoExecConfig(true, "callvote_manager");
 	ApplyConVars();
+}
+
+Action Command_test(int iClient, int sArgs)
+{
+	CPrintToChat(iClient, "%t iClient:%N|%d", "Tag", iClient, iClient);
+	return Plugin_Handled;
 }
 
 /**
@@ -345,7 +361,7 @@ public Action Listener_CallVote(int client, const char[] command, int args)
 	}
 
 	// Check if the client is spectating
-	if (g_cvarSpecVote.BoolValue && view_as<L4D2_Team>(GetClientTeam(client)) == L4D2Team_Spectator)
+	if (g_cvarSpecVote.BoolValue && GetClientTeam(client) == L4D2Team_Spectator)
 	{
 		CPrintToChat(client, "%t %t", "Tag", "SpecVote");
 		return Plugin_Handled;
@@ -659,6 +675,54 @@ public Action Listener_CallVote(int client, const char[] command, int args)
 }
 
 /*
+ * vote_cast_yes
+ *
+ *	"team"			"byte"
+ *	"entityid"		"long"	// entity id of the voter
+ *
+ */
+public void Event_VoteCastYes(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+{
+	if (!g_cvarProgress.BoolValue)
+		return;
+
+	int iClient = hEvent.GetInt("entityid");
+	if (!IsValidClientIndex(iClient))
+		return;
+
+	int	 iTeam = GetClientTeam(iClient);
+
+	if (g_cvarProgressAnony.BoolValue)
+		CPrintToChatAll("%t %t", "Tag", "VoteCastAnon", TeamTranslation(iTeam), "{blue}F1{default}");
+	else
+		CPrintToChatAll("%t %t", "Tag", "VoteCast", iClient, TeamTranslation(iTeam), "{blue}F1{default}");
+}
+
+/*
+ * vote_cast_no
+ *
+ * "team"			"byte"
+ * "entityid"		"long"	// entity id of the voter
+ *
+ */
+public void Event_VoteCastNo(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+{
+	if (!g_cvarProgress.BoolValue)
+		return;
+
+	int iClient = hEvent.GetInt("entityid");
+	if (!IsValidClientIndex(iClient))
+		return;
+
+	int iTeam	= GetClientTeam(iClient);
+
+	if (g_cvarProgressAnony.BoolValue)
+		CPrintToChatAll("%t %t", "Tag", "VoteCastAnon", TeamTranslation(iTeam), "{red}F2{default}");
+	else
+		CPrintToChatAll("%t %t", "Tag", "VoteCast", iClient, TeamTranslation(iTeam), "{red}F2{default}");
+}
+
+/*
  * @brief: Print debug message to log file
  * @param: sMessage - Message to print
  * @param: any - Arguments
@@ -811,6 +875,42 @@ int Campaign_Code(const char[] sCode)
 			return i;
 	}
 	return -1;
+}
+
+/**
+ * Client indexed.
+ *
+ * @param client		Player's index.
+ * @return				true if the client is valid, false if not.
+ */
+stock bool IsValidClientIndex(int iClient)
+{
+	return (iClient > 0 && iClient <= MaxClients);
+}
+
+/**
+ * Translates a Left 4 Dead 2 team ID to its corresponding team name.
+ *
+ * @param Team The team ID to translate.
+ * @return The translated team name as a string.
+ */
+char[] TeamTranslation(int Team)
+{
+	char sBuffer[16];
+	switch (Team)
+	{
+		case L4D2Team_Survivor:
+			Format(sBuffer, sizeof(sBuffer), "%t", "L4D2Team_Survivor");
+		case L4D2Team_Infected:
+			Format(sBuffer, sizeof(sBuffer), "%t", "L4D2Team_Infected");
+		case L4D2Team_Spectator:
+			Format(sBuffer, sizeof(sBuffer), "%t", "L4D2Team_Spectator");
+		case L4D2Team_L4D1_Survivor:
+			Format(sBuffer, sizeof(sBuffer), "%t", "L4D2Team_L4D1_Survivor");
+		default:
+			Format(sBuffer, sizeof(sBuffer), "%t", "L4D2Team_None");
+	}
+	return sBuffer;
 }
 
 // =======================================================================================

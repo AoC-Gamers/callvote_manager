@@ -246,10 +246,14 @@ public void Event_VoteCastYes(Event hEvent, const char[] sEventName, bool bDontB
 	if(!g_cvarVoteCastYes.BoolValue)
 		return;
 
-	int iTeam = hEvent.GetInt("team");
 	int iEntityid = hEvent.GetInt("entityid");
-	CPrintToChatAll("%s VoteCastYes: team: %d, entityid: %d", TAG, iTeam, iEntityid);
+	int iTeam = GetClientTeam(iEntityid);
+
+	if(!IsValidClientIndex(iEntityid))
+		return;
+
 	log("VoteCastYes: team: %d, entityid: %d", iTeam, iEntityid);
+	CPrintToChatAll("%s VoteCastYes: team: %d, entityid: %d", TAG, iTeam, iEntityid);
 }
 
 /*
@@ -264,10 +268,14 @@ public void Event_VoteCastNo(Event hEvent, const char[] sEventName, bool bDontBr
 	if(!g_cvarVoteCastNo.BoolValue)
 		return;
 
-	int iTeam = hEvent.GetInt("team");
 	int iEntityid = hEvent.GetInt("entityid");
-	CPrintToChatAll("%s VoteCastNo: team: %d, entityid: %d", TAG, iTeam, iEntityid);
+	int iTeam = GetClientTeam(iEntityid);
+
+	if(!IsValidClientIndex(iEntityid))
+		return;
+
 	log("VoteCastNo: team: %d, entityid: %d", iTeam, iEntityid);
+	CPrintToChatAll("%s VoteCastNo: team: %d, entityid: %d", TAG, iTeam, iEntityid);
 }
 
 /*
@@ -552,4 +560,26 @@ void log(const char[] sMessage, any...)
 	File file = OpenFile(g_sLogPath, "a+");
 	LogToFileEx(g_sLogPath, "[Testing] %s", sFormat);
 	delete file;
+}
+
+/**
+ * Returns a valid client indexed.
+ *
+ * @param client		Player's index.
+ * @return				true if the client is valid, false if not.
+ */
+stock bool IsValidClient(int iClient)
+{
+	return (IsValidClientIndex(iClient) && IsClientInGame(iClient) && !IsFakeClient(iClient));
+}
+
+/**
+ * Client indexed.
+ *
+ * @param client		Player's index.
+ * @return				true if the client is valid, false if not.
+ */
+stock bool IsValidClientIndex(int iClient)
+{
+	return (iClient > 0 && iClient <= MaxClients);
 }

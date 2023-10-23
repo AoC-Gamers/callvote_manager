@@ -136,4 +136,36 @@
 	{
 		"en"		"Same difficulty"
 	}
+	"L4D2Team_Survivor"
+	{
+		"en"		"Survivor"
+	}
+	"L4D2Team_Infected"
+	{
+		"en"		"Infected"
+	}
+	"L4D2Team_Spectator"
+	{
+		"en"		"Spectator"
+	}
+	"L4D2Team_L4D1_Survivor"
+	{
+		"en"		"L4D1 Survivor"
+	}
+	"L4D2Team_None"
+	{
+		"en"		"None"
+	}
+	"VoteCastYes"
+	{
+		"en"		"Progress"
+	}
+	"VoteCastAnon"
+	{
+		"en"		"A {olive}%s{default}: %s"
+	}
+	"VoteCast"
+	{
+		"en"		"{green}%N{default} from team {olive}%s{default}: %s"
+	}
 }
