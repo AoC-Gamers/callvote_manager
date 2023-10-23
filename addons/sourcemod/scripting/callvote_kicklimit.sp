@@ -9,7 +9,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION	  "1.2"
+#define PLUGIN_VERSION	  "1.2.1"
 #define CONSOLE			  0
 #define MAX_AUTHID_LENGTH 64 /**< Maximum buffer required to store any AuthID type */
 #define DIR_CALLVOTE	  "logs/callvote.log"
@@ -201,6 +201,9 @@ bool IsClientRegistred(int iClient, const char[] sAuth)
  */
 public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
 {
+	if (!g_cvarEnable.BoolValue)
+		return;
+
 	if (iVotes != Kick)
 		return;
 
@@ -228,6 +231,9 @@ public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
  */
 public Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
 {
+	if (!g_cvarEnable.BoolValue)
+		return Plugin_Continue;
+
 	char sIssue[128];
 	hBf.ReadString(sIssue, 128);
 
@@ -258,6 +264,9 @@ public Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers
  */
 public Action Message_VoteFail(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
 {
+	if (!g_cvarEnable.BoolValue)
+		return Plugin_Continue;
+
 	char sIssue[128];
 	hBf.ReadString(sIssue, 128);
 
@@ -310,6 +319,12 @@ Action Command_KickCount(int iClient, int sArgs)
 
 Action Command_KickShow(int iClient, int sArgs)
 {
+	if (!g_cvarEnable.BoolValue)
+	{
+		CPrintToChat(iClient, "%t %t", "Tag", "PluginDisabled");
+		return Plugin_Handled;
+	}
+	
 	char sAuth[32];
 	GetClientAuthId(iClient, AuthId_Steam2, sAuth, sizeof(sAuth));
 
