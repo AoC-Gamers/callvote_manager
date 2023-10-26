@@ -9,7 +9,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION	  "1.2.1"
+#define PLUGIN_VERSION	  "1.2.2"
 #define CONSOLE			  0
 #define MAX_AUTHID_LENGTH 64 /**< Maximum buffer required to store any AuthID type */
 #define DIR_CALLVOTE	  "logs/callvote.log"
@@ -232,6 +232,9 @@ public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
 public Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
 {
 	if (!g_cvarEnable.BoolValue)
+		return Plugin_Continue;
+
+	if(g_iCaller == 0)
 		return Plugin_Continue;
 
 	char sIssue[128];
