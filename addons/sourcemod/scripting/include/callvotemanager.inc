@@ -35,7 +35,8 @@
 #endif
 #define _callvotemanager_included
 
-#define MAX_REASON_LENGTH 512
+#if !defined _callvote_votetye_included
+#define _callvote_votetye_included
 
 enum TypeVotes
 {
@@ -59,6 +60,9 @@ stock char sTypeVotes[TypeVotes_Size][] = {
 	"ChangeChapter",
 	"ChangeAllTalk"
 };
+#endif
+
+#define MAX_REASON_LENGTH 512
 
 /**
  * Starts when a voting call begins, indicates the user who started it and the type of voting.
@@ -78,7 +82,7 @@ forward void CallVote_Start(int client, TypeVotes votes, int Target);
  * @error Invalid length reason (MAX_REASON_LENGTH)
  * @error Invalid numParams
  */
-native void	 CallVote_Reject(int client, char[] reason = "");
+native void	CallVote_Reject(int client, char[] reason = "");
 
 public SharedPlugin __pl_callvotemanager = {
 	name = "callvotemanager",

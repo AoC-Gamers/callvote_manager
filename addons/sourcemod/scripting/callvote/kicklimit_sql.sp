@@ -36,42 +36,24 @@
 #define _callvotekicklimit_sql_included
 
 ConVar		g_cvarSQL;
-DBStatement hPrepareQuery = null;
-Database	hGetKick;
+DBStatement g_hPrepareQuery = null;
 
-public void OPS_SQL()
+public void OnPluginStart_SQL()
 {
 	g_cvarSQL = CreateConVar("sm_cvkl_sql", "0", "Enables kick counter registration to the database, if disabled it uses local memory.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	RegServerCmd("sm_cvkl_createsql", Command_CreateSQL, "Create SQL tables for CallVote KickLimit");
-
-	hGetKick = Connect();
-	if (hGetKick == null)
-		log("Could not connect to database: hGetKick");
 }
 
-Database Connect()
+void OnConfigsExecuted_SQL()
 {
-	char	 sError[255];
-	Database hDataBase;
+	if (!g_cvarSQL.BoolValue)
+		return;
 
-	if (SQL_CheckConfig("callvote"))
-		hDataBase = SQL_Connect("callvote", true, sError, sizeof(sError));
-
-	if (hDataBase == null)
-		log("Could not connect to database: %s", sError);
-
-	return hDataBase;
+	g_hDatabase = Connect("callvote");
 }
 
 Action Command_CreateSQL(int iArgs)
 {
-	Database hDataBase = Connect();
-	if (hDataBase == null)
-	{
-		CReplyToCommand(CONSOLE, "%t Could not connect to database", "Tag");
-		return Plugin_Handled;
-	}
-
 	char sQuery[600];
 	Format(sQuery, sizeof(sQuery), "CREATE TABLE IF NOT EXISTS `callvote_kicklimit` ( \
         `id` int(6) NOT NULL auto_increment, \
@@ -81,20 +63,19 @@ Action Command_CreateSQL(int iArgs)
         PRIMARY KEY(`id`)) \
 		ENGINE = InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci");
 
-	if (!SQL_FastQuery(hDataBase, sQuery))
+	if (!SQL_FastQuery(g_hDatabase, sQuery))
 	{
 		char sError[255];
-		SQL_GetError(hDataBase, sError, sizeof(sError));
-		log("Query failed: %s", sError);
-		log("Query dump: %s", sQuery);
+		SQL_GetError(g_hDatabase, sError, sizeof(sError));
+		log(false, "Query failed: %s", sError);
+		log(false, "Query dump: %s", sQuery);
 		CReplyToCommand(CONSOLE, "%t Failed to query database", "Tag");
 		return Plugin_Handled;
 	}
 
 	CReplyToCommand(CONSOLE, "%t Tables have been created.", "Tag");
-	log("%t Tables have been created.", "Tag");
+	log(false, "%t Tables have been created.", "Tag");
 
-	delete hDataBase;
 	return Plugin_Handled;
 }
 
@@ -102,13 +83,6 @@ bool sqlinsert(int iClient, int iTarget)
 {
 	if (!g_cvarSQL.BoolValue)
 		return false;
-
-	Database hDataBase = Connect();
-	if (hDataBase == null)
-	{
-		log("Could not connect to database");
-		return false;
-	}
 
 	char
 		sSteamID_Client[MAX_AUTHID_LENGTH],
@@ -120,46 +94,45 @@ bool sqlinsert(int iClient, int iTarget)
 	char sQuery[600];
 	FormatEx(sQuery, sizeof(sQuery), "INSERT INTO `callvote_kicklimit` (`authid`, `created`, `authidTarget`) VALUES ('%s', '%d', '%s')", sSteamID_Client, GetTime(), sSteamID_Target);
 
-	if (!SQL_FastQuery(hDataBase, sQuery))
+	if (!SQL_FastQuery(g_hDatabase, sQuery))
 	{
 		char sError[255];
-		SQL_GetError(hDataBase, sError, sizeof(sError));
-		log("Query failed: %s", sError);
-		log("Query dump: %s", sQuery);
+		SQL_GetError(g_hDatabase, sError, sizeof(sError));
+		log(false, "Query failed: %s", sError);
+		log(false, "Query dump: %s", sQuery);
 		return false;
 	}
 
-	delete hDataBase;
 	return true;
 }
 
-bool GetCountKick(Database hDataBase, int iClient, const char[] sSteamID)
+bool GetCountKick(int iClient, const char[] sSteamID)
 {
 	char error[255];
 
 	/* Check if we haven't already created the statement */
-	if (hPrepareQuery == null)
+	if (g_hPrepareQuery == null)
 	{
-		hPrepareQuery = SQL_PrepareQuery(hDataBase, "SELECT COUNT(*) FROM callvote_kicklimit WHERE created >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY)) AND authid = ?", error, sizeof(error));
-		if (hPrepareQuery == null)
+		g_hPrepareQuery = SQL_PrepareQuery(g_hDatabase, "SELECT COUNT(*) FROM callvote_kicklimit WHERE created >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY)) AND authid = ?", error, sizeof(error));
+		if (g_hPrepareQuery == null)
 		{
-			log("Failed to Prepare Query: %s", error);
+			log(false, "Failed to Prepare Query: %s", error);
 			return false;
 		}
 	}
 
-	hPrepareQuery.BindString(0, sSteamID, false);
-	if (!SQL_Execute(hPrepareQuery))
+	g_hPrepareQuery.BindString(0, sSteamID, false);
+	if (!SQL_Execute(g_hPrepareQuery))
 	{
-		SQL_GetError(hPrepareQuery, error, sizeof(error));
-		log("Failed to execute query: %s", error);
+		SQL_GetError(g_hPrepareQuery, error, sizeof(error));
+		log(false, "Failed to execute query: %s", error);
 		return false;
 	}
 
 	/* Get some info here */
-	while (SQL_FetchRow(hPrepareQuery))
+	while (SQL_FetchRow(g_hPrepareQuery))
 	{
-		g_Players[iClient].Kick = SQL_FetchInt(hPrepareQuery, 0);
+		g_Players[iClient].Kick = SQL_FetchInt(g_hPrepareQuery, 0);
 	}
 	return true;
 }

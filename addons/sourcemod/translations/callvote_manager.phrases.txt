@@ -136,23 +136,19 @@
 	{
 		"en"		"Same difficulty"
 	}
-	"L4D2Team_Survivor"
+	"L4DTeam_Survivor"
 	{
 		"en"		"Survivor"
 	}
-	"L4D2Team_Infected"
+	"L4DTeam_Infected"
 	{
 		"en"		"Infected"
 	}
-	"L4D2Team_Spectator"
+	"L4DTeam_Spectator"
 	{
 		"en"		"Spectator"
 	}
-	"L4D2Team_L4D1_Survivor"
-	{
-		"en"		"L4D1 Survivor"
-	}
-	"L4D2Team_None"
+	"L4DTeam_Unassigned"
 	{
 		"en"		"None"
 	}

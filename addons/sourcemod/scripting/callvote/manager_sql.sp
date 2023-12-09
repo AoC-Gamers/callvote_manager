@@ -35,31 +35,26 @@
 #endif
 #define _callvotemanager_sql_included
 
-ConVar g_cvarSQL;
+/*****************************************************************
+			G L O B A L   V A R S
+*****************************************************************/
 
-public void OPS_SQL()
+ConVar
+	g_cvarSQL;
+
+/*****************************************************************
+			F O R W A R D   P U B L I C S
+*****************************************************************/
+
+public void OnPluginStart_SQL()
 {
 	g_cvarSQL = CreateConVar("sm_cvm_sql", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
 	RegServerCmd("sm_cvm_createsql", Command_CreateSQL, "Create SQL tables for CallVoteManager");
 }
 
-Database Connect()
-{
-	char	 sError[255];
-	Database db;
-
-	if (SQL_CheckConfig("callvote"))
-		db = SQL_Connect("callvote", true, sError, sizeof(sError));
-
-	if (db == null)
-		log(false, "Could not connect to database: %s", sError);
-
-	return db;
-}
-
 Action Command_CreateSQL(int args)
 {
-	Database db = Connect();
+	Database db = Connect("callvote");
 	if (db == null)
 	{
 		CReplyToCommand(CONSOLE, "%t Could not connect to database", "Tag");
@@ -93,17 +88,22 @@ Action Command_CreateSQL(int args)
 	return Plugin_Handled;
 }
 
+void OnConfigsExecuted_SQL()
+{
+	if (!g_cvarSQL.BoolValue)
+		return;
+
+	g_hDatabase = Connect("callvote");
+}
+
+/*****************************************************************
+			P L U G I N   F U N C T I O N S
+*****************************************************************/
+
 bool sqllog(TypeVotes type, int client, int target = 0)
 {
 	if (!g_cvarSQL.BoolValue)
 		return false;
-
-	Database db = Connect();
-	if (db == null)
-	{
-		log(false, "Could not connect to database");
-		return false;
-	}
 
 	char
 		sSteamID_Client[32],
@@ -117,18 +117,16 @@ bool sqllog(TypeVotes type, int client, int target = 0)
 		Format(sSteamID_Target, sizeof(sSteamID_Target), "");
 
 	char sQuery[600];
-	Format(sQuery, sizeof(sQuery), "INSERT INTO `callvote_log` (`authid`, `created`, `type`, `authidTarget`) VALUES ('%s', '%d', '%d', '%s')",
+	g_hDatabase.Format(sQuery, sizeof(sQuery), "INSERT INTO `callvote_log` (`authid`, `created`, `type`, `authidTarget`) VALUES ('%s', '%d', '%d', '%s')",
 		   sSteamID_Client, GetTime(), view_as<int>(type), sSteamID_Target);
 
-	if (!SQL_FastQuery(db, sQuery))
+	if (!SQL_FastQuery(g_hDatabase, sQuery))
 	{
 		char sError[255];
-		SQL_GetError(db, sError, sizeof(sError));
-		log(false, "Query failed: %s", sError);
-		log(false, "Query dump: %s", sQuery);
+		SQL_GetError(g_hDatabase, sError, sizeof(sError));
+		log(false, "SQL failed: %s", sError);
+		log(false, "Query: %s", sQuery);
 		return false;
 	}
-
-	delete db;
 	return true;
 }
