@@ -556,11 +556,6 @@ int GetBans(int iClient, const char[] sSteamID = "", bool bOffline = false)
 		log(false, "SQL failed: %s", sSQLError);
 		delete g_hGetBans;
 	}
-	else if (!SQL_FetchRow(g_hGetBans))
-	{
-		log(false, "SQL failed: Query did not get any rows [Query: %s | Player: %s]", sQuery, bOffline ? sSteamID : g_PlayersBans[iClient].steamid2);
-		delete g_hGetBans;
-	}
 	else
 		return SQL_FetchInt(g_hGetBans, 0);
 
