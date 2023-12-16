@@ -88,14 +88,6 @@ public void OnPluginStart()
 	}
 }
 
-public void OnConfigsExecuted()
-{
-	if (!g_cvarEnable.BoolValue)
-		return;
-	
-	OnConfigsExecuted_SQL();
-}
-
 public void OnClientAuthorized(int iClient, const char[] sAuth)
 {
 	if (!g_cvarEnable.BoolValue || IsFakeClient(iClient))

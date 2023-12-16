@@ -42,13 +42,6 @@ public void OnPluginStart_SQL()
 {
 	g_cvarSQL = CreateConVar("sm_cvkl_sql", "0", "Enables kick counter registration to the database, if disabled it uses local memory.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	RegServerCmd("sm_cvkl_createsql", Command_CreateSQL, "Create SQL tables for CallVote KickLimit");
-}
-
-void OnConfigsExecuted_SQL()
-{
-	if (!g_cvarSQL.BoolValue)
-		return;
-
 	g_hDatabase = Connect("callvote");
 }
 
