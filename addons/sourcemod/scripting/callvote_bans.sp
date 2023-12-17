@@ -556,7 +556,8 @@ int GetBans(int iClient, const char[] sSteamID = "", bool bOffline = false)
 		log(false, "SQL failed: %s", sSQLError);
 		delete g_hGetBans;
 	}
-	else
+
+	if (SQL_FetchRow(g_hGetBans))
 		return SQL_FetchInt(g_hGetBans, 0);
 
 	return 0;
