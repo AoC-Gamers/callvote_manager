@@ -60,6 +60,7 @@ public void OnPluginStart()
 {
 	LoadTranslation("callvote_kicklimit.phrases");
 	LoadTranslation("common.phrases");
+	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 	CreateConVar("sm_cvkl_version", PLUGIN_VERSION, "Plugin version", FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD);
 
 	g_cvarDebug 	= CreateConVar("sm_cvkl_debug", "0", "Enable debug", FCVAR_NONE, true, 0.0, true, 1.0);
@@ -73,8 +74,7 @@ public void OnPluginStart()
 	HookUserMessage(GetUserMessageId("VoteFail"), Message_VoteFail);
 
 	OnPluginStart_SQL();
-
-	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
+	
 	AutoExecConfig(false, "callvote_kicklimit");
 
 	for (int i = 1; i <= MaxClients; i++)
