@@ -49,7 +49,7 @@ ConVar
 public void OnPluginStart_SQL()
 {
 	g_cvarSQL = CreateConVar("sm_cvm_sql", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
-	RegAdminCmd("sm_cvm_sql", Command_CreateSQL, ADMFLAG_ROOT, "Install SQL tables");
+	RegAdminCmd("sm_cvkl_sql_install", Command_CreateSQL, ADMFLAG_ROOT, "Install SQL tables");
 
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 	g_hDatabase = Connect("callvote");

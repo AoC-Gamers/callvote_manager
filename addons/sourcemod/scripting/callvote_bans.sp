@@ -61,7 +61,7 @@ public void OnPluginStart()
 	g_cvarEnable = CreateConVar("sm_cvb_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarLog	 = CreateConVar("sm_cvb_log", "1", "Log sMessages", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
-	RegAdminCmd("sm_cvb_sql", Command_CreateSQL, ADMFLAG_ROOT, "Install SQL tables");
+	RegAdminCmd("sm_cvkl_sql_install", Command_CreateSQL, ADMFLAG_ROOT, "Install SQL tables");
 	RegAdminCmd("sm_cvb_show", Command_ShowBans, ADMFLAG_GENERIC, "Show bans");
 	RegConsoleCmd("sm_cvb_status", Command_Status, "Shows if I'm banned");
 	RegAdminCmd("sm_cvb_ban", Command_Ban, ADMFLAG_BAN, "Show bans");
