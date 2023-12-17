@@ -4,6 +4,18 @@
 	{
 		"en"		"[{olive}CallVote{default}]"
 	}
+	"PluginDisabled"
+	{
+		"en"		"Plugin {red}disabled{default}."
+	}
+	"DBQueryError"
+	{
+		"en"		"Database query {red}error{default}"
+	}
+	"DBTableCreated"
+	{
+		"en"		"Table created {green}successfully{default}."
+	}
 	"TryAgain"
 	{
 		"en"		"A vote can't be called right now, try again in %is!"

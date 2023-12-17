@@ -12,6 +12,14 @@
 	{
 		"en"		"Plugin {red}disabled{default}."
 	}
+	"DBQueryError"
+	{
+		"en"		"Database query {red}error{default}"
+	}
+	"DBTableCreated"
+	{
+		"en"		"Table created {green}successfully{default}."
+	}
 	"Cooldown"
 	{
 		"en"		"The command is on {green}cooldown{default}."
@@ -28,17 +36,9 @@
 	{
 		"en"		"{green}%s{default} has a bans: [%s] "
 	}
-	"DBQueryError"
-	{
-		"en"		"Database query {red}error{default}"
-	}
 	"DBNoConnect"
 	{
 		"en"		"{red}Could not{default} connect to database."
-	}
-	"DBTableCreated"
-	{
-		"en"		"Table created {green}successfully{default}."
 	}
 	"PlayerAlreadyBanned"
 	{

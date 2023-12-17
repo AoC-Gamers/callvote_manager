@@ -8,6 +8,14 @@
 	{
 		"es"		"Plugin {red}desactivado{default}."
 	}
+	"DBQueryError"
+	{
+		"es"		"{red}Error{default} en la consulta a la base de datos"
+	}
+	"DBTableCreated"
+	{
+		"es"		"Tabla creada {green}correctamente{default}."
+	}
 	"Cooldown"
 	{
 		"es"		"El comando está en {green}enfriamiento{default}."
@@ -24,17 +32,9 @@
 	{
 		"es"		"{green}%s{default} tiene los siguientes bans: [%s] "
 	}
-	"DBQueryError"
-	{
-		"es"		"{red}Error{default} en la consulta a la base de datos"
-	}
 	"DBNoConnect"
 	{
 		"es"		"{red}No se pudo{default} conectar a la base de datos."
-	}
-	"DBTableCreated"
-	{
-		"es"		"Tabla creada {green}correctamente{default}."
 	}
 	"PlayerAlreadyBanned"
 	{

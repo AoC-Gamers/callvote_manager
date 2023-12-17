@@ -185,7 +185,6 @@ public void OnPluginStart()
 	HookEvent("vote_cast_yes", Event_VoteCastYes);
 	HookEvent("vote_cast_no", Event_VoteCastNo);
 
-	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 	AutoExecConfig(false, "callvote_manager");
 }
 

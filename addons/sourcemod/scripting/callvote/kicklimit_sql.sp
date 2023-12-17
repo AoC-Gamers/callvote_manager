@@ -41,12 +41,20 @@ DBStatement g_hPrepareQuery = null;
 public void OnPluginStart_SQL()
 {
 	g_cvarSQL = CreateConVar("sm_cvkl_sql", "0", "Enables kick counter registration to the database, if disabled it uses local memory.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	RegServerCmd("sm_cvkl_createsql", Command_CreateSQL, "Create SQL tables for CallVote KickLimit");
+	RegAdminCmd("sm_cvkl_sql", Command_CreateSQL, ADMFLAG_ROOT, "Install SQL tables");
+
+	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 	g_hDatabase = Connect("callvote");
 }
 
-Action Command_CreateSQL(int iArgs)
+Action Command_CreateSQL(int iClient, int iArgs)
 {
+	if (!g_cvarEnable.BoolValue)
+	{
+		CReplyToCommand(iClient, "%t %t", "Tag", "PluginDisabled");
+		return Plugin_Handled;
+	}
+
 	char sQuery[600];
 	Format(sQuery, sizeof(sQuery), "CREATE TABLE IF NOT EXISTS `callvote_kicklimit` ( \
         `id` int(6) NOT NULL auto_increment, \
@@ -58,17 +66,16 @@ Action Command_CreateSQL(int iArgs)
 
 	if (!SQL_FastQuery(g_hDatabase, sQuery))
 	{
-		char sError[255];
-		SQL_GetError(g_hDatabase, sError, sizeof(sError));
-		log(false, "Query failed: %s", sError);
-		log(false, "Query dump: %s", sQuery);
-		CReplyToCommand(CONSOLE, "%t Failed to query database", "Tag");
+		char sSQLError[255];
+		SQL_GetError(g_hDatabase, sSQLError, sizeof(sSQLError));
+		log(false, "SQL failed: %s", sSQLError);
+		log(false, "Query: %s", sQuery);
+		CReplyToCommand(iClient, "%t %t", "Tag", "DBQueryError");
 		return Plugin_Handled;
 	}
 
-	CReplyToCommand(CONSOLE, "%t Tables have been created.", "Tag");
-	log(false, "%t Tables have been created.", "Tag");
-
+	CReplyToCommand(iClient, "%t %t", "Tag", "DBTableCreated");
+	log(true, "%t Tables have been created.", "Tag");
 	return Plugin_Handled;
 }
 

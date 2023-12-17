@@ -49,15 +49,17 @@ ConVar
 public void OnPluginStart_SQL()
 {
 	g_cvarSQL = CreateConVar("sm_cvm_sql", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
-	RegServerCmd("sm_cvm_createsql", Command_CreateSQL, "Create SQL tables for CallVoteManager");
+	RegAdminCmd("sm_cvm_sql", Command_CreateSQL, ADMFLAG_ROOT, "Install SQL tables");
+
+	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
+	g_hDatabase = Connect("callvote");
 }
 
-Action Command_CreateSQL(int args)
+Action Command_CreateSQL(int iClient, int iArgs)
 {
-	Database db = Connect("callvote");
-	if (db == null)
+	if (!g_cvarEnable.BoolValue)
 	{
-		CReplyToCommand(CONSOLE, "%t Could not connect to database", "Tag");
+		CReplyToCommand(iClient, "%t %t", "Tag", "PluginDisabled");
 		return Plugin_Handled;
 	}
 
@@ -71,20 +73,18 @@ Action Command_CreateSQL(int args)
         PRIMARY KEY(`id`)) \
 		ENGINE = InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci");
 
-	if (!SQL_FastQuery(db, sQuery))
+	if (!SQL_FastQuery(g_hDatabase, sQuery))
 	{
-		char sError[255];
-		SQL_GetError(db, sError, sizeof(sError));
-		log(false, "Query failed: %s", sError);
-		log(false, "Query dump: %s", sQuery);
-		CReplyToCommand(CONSOLE, "%t Failed to query database", "Tag");
+		char sSQLError[255];
+		SQL_GetError(g_hDatabase, sSQLError, sizeof(sSQLError));
+		log(false, "SQL failed: %s", sSQLError);
+		log(false, "Query: %s", sQuery);
+		CReplyToCommand(iClient, "%t %t", "Tag", "DBQueryError");
 		return Plugin_Handled;
 	}
 
-	CReplyToCommand(CONSOLE, "%t Tables have been created.", "Tag");
-	log(false, "%t Tables have been created.", "Tag");
-
-	delete db;
+	CReplyToCommand(iClient, "%t %t", "Tag", "DBTableCreated");
+	log(true, "%t Tables have been created.", "Tag");
 	return Plugin_Handled;
 }
 

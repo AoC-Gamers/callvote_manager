@@ -4,6 +4,22 @@
 	{
 		"en"		"[{olive}CallVote{default}]"
 	}
+	"Usage"
+	{
+		"en"		"Usage:"
+	}
+	"PluginDisabled"
+	{
+		"en"		"Plugin {red}disabled{default}."
+	}
+	"DBQueryError"
+	{
+		"en"		"Database query {red}error{default}"
+	}
+	"DBTableCreated"
+	{
+		"en"		"Table created {green}successfully{default}."
+	}
 	"KickReached"
 	{
 		"en"		"The limit for {green}kicking{default} calls has been reached ({red}%d{default}/{olive}%d{default})"
@@ -15,14 +31,6 @@
 	"KickLimitTarget"
 	{
 		"en"		"The call limit for ({olive}%s{default}) for {green}kick{default} is ({olive}%d{default}/{olive}%d{default})"
-	}
-	"PluginDisabled"
-	{
-		"en"		"Plugin is {red}disabled{default}"
-	}
-	"Usage"
-	{
-		"en"		"Usage:"
 	}
 	"KickShow"
 	{

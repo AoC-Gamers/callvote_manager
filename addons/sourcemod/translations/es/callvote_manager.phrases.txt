@@ -1,5 +1,17 @@
 "Phrases"
 {
+	"PluginDisabled"
+	{
+		"es"		"Plugin {red}desactivado{default}."
+	}
+	"DBQueryError"
+	{
+		"es"		"{red}Error{default} en la consulta a la base de datos"
+	}
+	"DBTableCreated"
+	{
+		"es"		"Tabla creada {green}correctamente{default}."
+	}
 	"TryAgain"
 	{
 		"es"		"No se puede solicitar una votación en este momento, ¡inténtalo de nuevo en %is!"

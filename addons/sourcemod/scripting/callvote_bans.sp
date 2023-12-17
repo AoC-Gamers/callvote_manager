@@ -53,8 +53,7 @@ public Plugin myinfo =
 			F O R W A R D   P U B L I C S
 *****************************************************************/
 
-public void
-	OnPluginStart()
+public void OnPluginStart()
 {
 	LoadTranslation("callvote_bans.phrases");
 	LoadTranslation("common.phrases");
@@ -68,8 +67,8 @@ public void
 	RegAdminCmd("sm_cvb_ban", Command_Ban, ADMFLAG_BAN, "Show bans");
 	RegAdminCmd("sm_cvb_unban", Command_UnBan, ADMFLAG_BAN, "Show bans");
 
-	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 	AutoExecConfig(false, "callvote_bans");
+	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 	g_hDatabase = Connect("callvote");
 
 	for (int i = 1; i <= MaxClients; i++)
