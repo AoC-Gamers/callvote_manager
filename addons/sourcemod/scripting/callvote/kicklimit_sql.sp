@@ -35,9 +35,19 @@
 #endif
 #define _callvotekicklimit_sql_included
 
-ConVar		g_cvarSQL;
-DBStatement g_hPrepareQuery = null;
+/*****************************************************************
+			G L O B A L   V A R S
+*****************************************************************/
 
+ConVar
+	g_cvarSQL;
+
+DBStatement
+	g_hPrepareQuery = null;
+
+/*****************************************************************
+			F O R W A R D   P U B L I C S
+*****************************************************************/
 public void OnPluginStart_SQL()
 {
 	g_cvarSQL = CreateConVar("sm_cvkl_sql", "0", "Enables kick counter registration to the database, if disabled it uses local memory.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
@@ -78,6 +88,10 @@ Action Command_CreateSQL(int iClient, int iArgs)
 	log(true, "%t Tables have been created.", "Tag");
 	return Plugin_Handled;
 }
+
+/*****************************************************************
+			P L U G I N   F U N C T I O N S
+*****************************************************************/
 
 bool sqlinsert(int iClient, int iTarget)
 {
