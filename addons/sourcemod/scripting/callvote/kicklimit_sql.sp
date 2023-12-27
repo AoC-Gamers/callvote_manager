@@ -93,20 +93,13 @@ Action Command_CreateSQL(int iClient, int iArgs)
 			P L U G I N   F U N C T I O N S
 *****************************************************************/
 
-bool sqlinsert(int iClient, int iTarget)
+bool sqlinsert(const char[] sClientID, const char[] sTargetID)
 {
 	if (!g_cvarSQL.BoolValue)
 		return false;
 
-	char
-		sSteamID_Client[MAX_AUTHID_LENGTH],
-		sSteamID_Target[MAX_AUTHID_LENGTH];
-
-	GetClientAuthId(iClient, AuthId_Engine, sSteamID_Client, MAX_AUTHID_LENGTH);
-	GetClientAuthId(iTarget, AuthId_Engine, sSteamID_Target, MAX_AUTHID_LENGTH);
-
 	char sQuery[600];
-	FormatEx(sQuery, sizeof(sQuery), "INSERT INTO `callvote_kicklimit` (`authid`, `created`, `authidTarget`) VALUES ('%s', '%d', '%s')", sSteamID_Client, GetTime(), sSteamID_Target);
+	FormatEx(sQuery, sizeof(sQuery), "INSERT INTO `callvote_kicklimit` (`authid`, `created`, `authidTarget`) VALUES ('%s', '%d', '%s')", sClientID, GetTime(), sTargetID);
 
 	if (!SQL_FastQuery(g_hDatabase, sQuery))
 	{

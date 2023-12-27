@@ -21,7 +21,8 @@
  */
 enum struct PlayerInfo
 {
-	char Steamid[MAX_AUTHID_LENGTH];	// Player SteamID
+	char ClientID[MAX_AUTHID_LENGTH];	// Client SteamID
+	char TargetID[MAX_AUTHID_LENGTH];	// Target SteamID
 	int	 Kick;							// kick voting call amount
 	int	 Target;						// Target kicked
 }
@@ -147,10 +148,10 @@ Action Command_KickShow(int iClient, int sArgs)
 		if (!g_Players[i].Kick)
 			continue;
 
-		if (StrEqual(g_Players[i].Steamid, sAuth))
+		if (StrEqual(g_Players[i].ClientID, sAuth))
 		{
 			iFound++;
-			CPrintToChat(iClient, "%t %t", "Tag", "KickShow", i, g_Players[i].Steamid, g_Players[i].Kick);
+			CPrintToChat(iClient, "%t %t", "Tag", "KickShow", i, g_Players[i].ClientID, g_Players[i].Kick);
 		}
 	}
 
@@ -168,12 +169,12 @@ public void OnClientAuthorized(int iClient, const char[] sAuth)
 	if (g_cvarSQL.BoolValue)
 	{
 		if (!GetCountKick(iClient, sAuth))
-			IsNewClient(iClient, sAuth);
+			IsNewClient(iClient);
 	}
 	else
 	{
 		if (!IsClientRegistred(iClient, sAuth))
-			IsNewClient(iClient, sAuth);
+			IsNewClient(iClient);
 	}
 }
 
@@ -197,8 +198,10 @@ public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
 		return;
 	}
 
-	g_iCaller				  = iClient;
-	g_Players[iClient].Target = iTarget;
+	g_iCaller = iClient;
+	g_Players[g_iCaller].Target = iTarget;
+	GetClientAuthId(iClient, AuthId_Steam2, g_Players[g_iCaller].ClientID, MAX_AUTHID_LENGTH);
+	GetClientAuthId(iTarget, AuthId_Steam2, g_Players[g_iCaller].TargetID, MAX_AUTHID_LENGTH);
 	return;
 }
 
@@ -234,7 +237,7 @@ public Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers
 		g_Players[g_iCaller].Kick++;
 
 		if (g_cvarSQL.BoolValue)
-			sqlinsert(g_iCaller, g_Players[g_iCaller].Target);
+			sqlinsert(g_Players[g_iCaller].ClientID, g_Players[g_iCaller].TargetID);
 
 		CreateTimer(0.1, Timer_CallVote_Pass, TIMER_FLAG_NO_MAPCHANGE);
 	}
@@ -280,9 +283,8 @@ public Action Message_VoteFail(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers
 			P L U G I N   F U N C T I O N S
 *****************************************************************/
 
-void IsNewClient(int iClient, const char[] sAuth)
+void IsNewClient(int iClient)
 {
-	strcopy(g_Players[iClient].Steamid, MAX_AUTHID_LENGTH, sAuth);
 	g_Players[iClient].Kick	  = 0;
 	g_Players[iClient].Target = 0;
 }
@@ -294,17 +296,15 @@ bool IsClientRegistred(int iClient, const char[] sAuth)
 		if (!g_Players[i].Kick)
 			continue;
 
-		if (StrEqual(g_Players[i].Steamid, sAuth, false))
+		if (StrEqual(g_Players[i].ClientID, sAuth, false))
 		{
 			if (i == iClient)
 				return true;
 			// Move the customer's saved data to their new ID
-			strcopy(g_Players[iClient].Steamid, MAX_AUTHID_LENGTH, sAuth);
 			g_Players[iClient].Kick	  = g_Players[i].Kick;
 			g_Players[iClient].Target = 0;
 
 			// Clear the old ID
-			strcopy(g_Players[i].Steamid, MAX_AUTHID_LENGTH, "");
 			g_Players[i].Kick	= 0;
 			g_Players[i].Target = 0;
 			return true;
