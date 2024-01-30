@@ -64,7 +64,7 @@ public void OnPluginStart()
 	LoadTranslation("common.phrases");
 	CreateConVar("sm_cvkl_version", PLUGIN_VERSION, "Plugin version", FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD);
 
-	g_cvarDebug		= CreateConVar("sm_cvkl_debug", "0", "Enable debug", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvarDebug		= CreateConVar("sm_cvkl_debug", "1", "Enable debug", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarEnable	= CreateConVar("sm_cvkl_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarLog		= CreateConVar("sm_cvkl_logs", "1", "Enable logging", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarKickLimit = CreateConVar("sm_cvkl_kicklimit", "1", "Kick limit", FCVAR_NOTIFY, true, 0.0);
@@ -168,8 +168,9 @@ public void OnClientAuthorized(int iClient, const char[] sAuth)
 
 	if (g_cvarSQL.BoolValue)
 	{
-		if (!GetCountKick(iClient, sAuth))
-			IsNewClient(iClient);
+		//if (!GetCountKick(iClient, sAuth))
+		//	IsNewClient(iClient);
+		GetCountKick(iClient, sAuth);
 	}
 	else
 	{

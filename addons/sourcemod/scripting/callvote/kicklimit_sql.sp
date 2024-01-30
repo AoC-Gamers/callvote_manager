@@ -42,9 +42,6 @@
 ConVar
 	g_cvarSQL;
 
-DBStatement
-	g_hPrepareQuery = null;
-
 /*****************************************************************
 			F O R W A R D   P U B L I C S
 *****************************************************************/
@@ -113,33 +110,32 @@ bool sqlinsert(const char[] sClientID, const char[] sTargetID)
 	return true;
 }
 
-bool GetCountKick(int iClient, const char[] sSteamID)
+void  GetCountKick(int iClient, const char[] sSteamID)
 {
-	char error[255];
-
-	/* Check if we haven't already created the statement */
-	if (g_hPrepareQuery == null)
-	{
-		g_hPrepareQuery = SQL_PrepareQuery(g_hDatabase, "SELECT COUNT(*) FROM callvote_kicklimit WHERE created >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY)) AND authid = ?", error, sizeof(error));
-		if (g_hPrepareQuery == null)
-		{
-			log(false, "Failed to Prepare Query: %s", error);
-			return false;
-		}
-	}
-
-	g_hPrepareQuery.BindString(0, sSteamID, false);
-	if (!SQL_Execute(g_hPrepareQuery))
-	{
-		SQL_GetError(g_hPrepareQuery, error, sizeof(error));
-		log(false, "Failed to execute query: %s", error);
-		return false;
-	}
-
-	/* Get some info here */
-	while (SQL_FetchRow(g_hPrepareQuery))
-	{
-		g_Players[iClient].Kick = SQL_FetchInt(g_hPrepareQuery, 0);
-	}
-	return true;
+	char
+		sQuery[255];
+	
+	g_hDatabase.Format(sQuery, sizeof(sQuery), "SELECT COUNT(*) FROM callvote_kicklimit WHERE created >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY)) AND authid = '%s';", sSteamID);
+	g_hDatabase.Query(CallBack_GetCountKick, sQuery, GetClientUserId(iClient));
 }
+
+public void CallBack_GetCountKick(Database db, DBResultSet results, const char[] error, any data)
+{
+	int iClient = GetClientOfUserId(data);
+	if (iClient == CONSOLE)
+		return;
+
+	int iKick;
+
+	if (results == null)
+		ThrowError("Error: %s", error);
+
+	if (results.FetchRow())
+	{
+		iKick = results.FetchInt(0);
+	}
+
+	g_Players[iClient].Kick = iKick;
+	if(!iKick)
+		IsNewClient(iClient);
+}	

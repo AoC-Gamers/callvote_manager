@@ -29,9 +29,6 @@ enum struct PlayerBans
 PlayerBans
 	g_PlayersBans[MAXPLAYERS + 1];
 
-DBStatement
-	g_hGetBans;
-
 bool
 	g_bshowCooldown;
 
@@ -57,7 +54,7 @@ public void OnPluginStart()
 {
 	LoadTranslation("callvote_bans.phrases");
 	LoadTranslation("common.phrases");
-	g_cvarDebug	 = CreateConVar("sm_cvb_debug", "0", "Debug sMessagess", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarDebug	 = CreateConVar("sm_cvb_debug", "1", "Debug sMessagess", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarEnable = CreateConVar("sm_cvb_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarLog	 = CreateConVar("sm_cvb_log", "1", "Log sMessages", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
@@ -71,12 +68,14 @@ public void OnPluginStart()
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 	g_hDatabase = Connect("callvote");
 
+	char auth[64];
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientConnected(i) || IsFakeClient(i))
 			continue;
 
-		OnClientPostAdminCheck(i);
+		if (IsClientAuthorized(i) && GetClientAuthId(i, AuthId_Engine, auth, sizeof(auth)))
+				OnClientAuthorized(i, auth);
 	}
 }
 
@@ -175,7 +174,7 @@ Action Command_ShowBans(int iClient, int iArgs)
 
 		ReplaceString(sBuffer, sizeof(sBuffer), "STEAM_0", "STEAM_1", false);
 
-		int iTypeBan = GetBans(0, sBuffer, true);
+		int iTypeBan = g_PlayersBans[iClient].type;
 		if (iTypeBan == 0)
 			CReplyToCommand(iClient, "%t %t", "Tag", "ShowNoBan");
 		else
@@ -244,21 +243,30 @@ Action Command_Ban(int iClient, int iArgs)
 	if (bIsOffline && iTarget == -1)
 	{
 		ReplaceString(sBuffer, sizeof(sBuffer), "STEAM_0", "STEAM_1", false);
+		int iBans = GetBans(0, sBuffer, true);
 
-		if (GetBans(0, sBuffer, true) == 0)
+		switch (iBans)
 		{
-			if (CreateBan(iClient, 0, iType, sBuffer, true))
-				CReplyToCommand(iClient, "%t %t", "Tag", "BanCreated");
-			else
-				CReplyToCommand(iClient, "%t %t", "Tag", "BanNotCreated");
+			case -1: CReplyToCommand(iClient, "%t %t", "Tag", "DBNoConnect");
+			case 0:
+			{
+				if (CreateBan(iClient, 0, iType, sBuffer, true))
+					CReplyToCommand(iClient, "%t %t", "Tag", "BanCreated");
+				else
+					CReplyToCommand(iClient, "%t %t", "Tag", "BanNotCreated");
+			}
+			default:
+			{
+				if (iBans > 0)
+				{
+					if (UpdateBan(iClient, 0, iType, sBuffer, true))
+						CReplyToCommand(iClient, "%t %t", "Tag", "BanUpdated");
+					else
+						CReplyToCommand(iClient, "%t %t", "Tag", "BanNotCreated");
+				}
+			}
 		}
-		else
-		{
-			if (UpdateBan(iClient, 0, iType, sBuffer, true))
-				CReplyToCommand(iClient, "%t %t", "Tag", "BanUpdated");
-			else
-				CReplyToCommand(iClient, "%t %t", "Tag", "BanNotCreated");
-		}
+		
 		return Plugin_Handled;
 	}
 	else if (iTarget == -1)
@@ -314,16 +322,33 @@ Action Command_UnBan(int iClient, int iArgs)
 
 	if (bIsOffline && iTarget == -1)
 	{
-		if (GetBans(0, sBuffer, true) == 0)
-		{
-			CReplyToCommand(iClient, "%t %t", "Tag", "ShowNoBan");
-			return Plugin_Handled;
-		}
+		ReplaceString(sBuffer, sizeof(sBuffer), "STEAM_0", "STEAM_1", false);
 
-		if (DeleteBan(0, sBuffer, true))
-			CReplyToCommand(iClient, "%t %t", "Tag", "BanDeleted");
-		else
-			CReplyToCommand(iClient, "%t %t", "Tag", "BanNotDeleted");
+		int iBans = GetBans(0, sBuffer, true);
+
+		switch (iBans)
+		{
+			case -1:
+			{
+				CReplyToCommand(iClient, "%t %t", "Tag", "DBNoConnect");
+				return Plugin_Handled;
+			}
+			case 0:
+			{
+				CReplyToCommand(iClient, "%t %t", "Tag", "ShowNoBan");
+				return Plugin_Handled;
+			}
+			default:
+			{
+				if (iBans > 0)
+				{
+					if (DeleteBan(0, sBuffer, true))
+						CReplyToCommand(iClient, "%t %t", "Tag", "BanDeleted");
+					else
+						CReplyToCommand(iClient, "%t %t", "Tag", "BanNotDeleted");
+				}
+			}
+		}
 		return Plugin_Handled;
 	}
 	else if (iTarget == -1)
@@ -348,7 +373,7 @@ Action Command_UnBan(int iClient, int iArgs)
 	return Plugin_Handled;
 }
 
-public void OnClientPostAdminCheck(int iClient)
+public void OnClientAuthorized(int iClient, const char[] sAuth)
 {
 	if (!g_cvarEnable.BoolValue)
 		return;
@@ -356,25 +381,15 @@ public void OnClientPostAdminCheck(int iClient)
 	if (IsFakeClient(iClient))
 		return;
 
-	if (!GetClientAuthId(iClient, AuthId_Steam2, g_PlayersBans[iClient].steamid2, MAX_AUTHID_LENGTH))
-	{
-		log(false, "Failed to get authid for client %N | %s", iClient, g_PlayersBans[iClient].steamid2);
-		return;
-	}
-
-	int iTypeBan = GetBans(iClient);
-	if (iTypeBan == 0)
-	{
-		log(true, "No bans for %N %s", iClient, g_PlayersBans[iClient].steamid2);
-		return;
-	}
-	else
-		g_PlayersBans[iClient].type = iTypeBan;
+	strcopy(g_PlayersBans[iClient].steamid2, MAX_AUTHID_LENGTH, sAuth);
+	g_PlayersBans[iClient].type = 0;
+	GetBans_Thread(iClient);
 }
 
 /*****************************************************************
 			F O R W A R D   P L U G I N S
 *****************************************************************/
+
 public void CallVote_Start(int client, TypeVotes votes, int Target)
 {
 	if (!g_cvarEnable.BoolValue)
@@ -530,36 +545,78 @@ bool DeleteBan(int iTarget, const char[] sSteamID = "", bool bOffline = false)
 int GetBans(int iClient, const char[] sSteamID = "", bool bOffline = false)
 {
 	char
-		sQuery[255];
-	Format(sQuery, sizeof(sQuery), "SELECT `type` FROM callvote_bans WHERE `authid` = ?");
-
-	if (g_hGetBans == null)
-	{
-		char sError[255];
-		if ((g_hGetBans = SQL_PrepareQuery(g_hDatabase, sQuery, sError, sizeof(sError))) == null)
-		{
-			log(false, "DBStatement failed: %s", sError);
-			return 0;
-		}
-	}
+		sQuery[255],
+		sError[255];
 
 	if (bOffline)
-		g_hGetBans.BindString(0, sSteamID, false);
+		Format(sQuery, sizeof(sQuery), "SELECT `type` FROM callvote_bans WHERE `authid` = '%s'", sSteamID);
 	else
-		g_hGetBans.BindString(0, g_PlayersBans[iClient].steamid2, false);
+		Format(sQuery, sizeof(sQuery), "SELECT `type` FROM callvote_bans WHERE `authid` = '%s'", g_PlayersBans[iClient].steamid2);
 
-	if (!SQL_Execute(g_hGetBans))
+	DBResultSet QueryGetBans;
+
+	if ((QueryGetBans = SQL_Query(g_hDatabase, sQuery)) == null)
 	{
-		char sSQLError[255];
-		SQL_GetError(g_hGetBans, sSQLError, sizeof(sSQLError));
-		log(false, "SQL failed: %s", sSQLError);
-		delete g_hGetBans;
+		SQL_GetError(g_hDatabase, sError, sizeof(sError));
+		log(false, "FetchUsers() query failed: %s", sQuery);
+		log(false, "Query error: %s", sError);
+		return -1;
 	}
 
-	if (SQL_FetchRow(g_hGetBans))
-		return SQL_FetchInt(g_hGetBans, 0);
+	int iTypeBan;
+	if (QueryGetBans.FetchRow())
+	{
+		iTypeBan = QueryGetBans.FetchInt(0);
+	}
+	delete QueryGetBans;
 
-	return 0;
+	return	iTypeBan;
+}
+
+/**
+ * Retrieves the ban type for a given client (Executes a query via a thread).
+ *
+ * @param iClient The client index.
+ * @param sSteamID The SteamID of the client. Defaults to an empty string.
+ * @param bOffline Specifies whether the client is offline. Defaults to false.
+ * @return The ban type for the client. Returns 0 if the client is not banned.
+ */
+void GetBans_Thread(int iClient, const char[] sSteamID = "", bool bOffline = false)
+{
+	char
+		sQuery[255];
+
+	if (bOffline)
+		g_hDatabase.Format(sQuery, sizeof(sQuery), "SELECT `type` FROM callvote_bans WHERE `authid` = '%s';", sSteamID);
+	else
+		g_hDatabase.Format(sQuery, sizeof(sQuery), "SELECT `type` FROM callvote_bans WHERE `authid` = '%s';", g_PlayersBans[iClient].steamid2);
+	
+	g_hDatabase.Query(CallBack_GetBans_Thread, sQuery, GetClientUserId(iClient));
+}
+
+public void CallBack_GetBans_Thread(Database db, DBResultSet results, const char[] error, any data)
+{
+	int iClient = GetClientOfUserId(data);
+	if (iClient == CONSOLE)
+		return;
+
+	int iTypeBan;
+
+	if (results == null)
+		ThrowError("Error: %s", error);
+
+	if (results.FetchRow())
+	{
+		iTypeBan = results.FetchInt(0);
+	}
+
+	if (iTypeBan == 0)
+	{
+		log(true, "No bans for %N %s", iClient, g_PlayersBans[iClient].steamid2);
+		return;
+	}
+	else
+		g_PlayersBans[iClient].type = iTypeBan;
 }
 
 /**

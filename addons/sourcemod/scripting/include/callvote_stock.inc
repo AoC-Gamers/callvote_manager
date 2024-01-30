@@ -126,8 +126,12 @@ stock Database Connect(char[] sConfigName)
 	char	 sError[255];
 	Database db;
 
-	if (SQL_CheckConfig(sConfigName))
-		db = SQL_Connect(sConfigName, true, sError, sizeof(sError));
+	if (!SQL_CheckConfig(sConfigName))
+	{
+		SetFailState("Database failure: could not find database config: %s", sConfigName);
+		return db;
+	}
+	db = SQL_Connect(sConfigName, true, sError, sizeof(sError));
 
 	if (db == null)
 		log(false, "Could not connect to database: %s", sError);
