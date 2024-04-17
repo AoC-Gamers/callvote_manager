@@ -35,6 +35,9 @@ int
 ConVar
 	g_cvarKickLimit;
 
+bool
+	g_bLateLoad = false;
+
 /*****************************************************************
 			L I B R A R Y   I N C L U D E S
 *****************************************************************/
@@ -58,6 +61,12 @@ public Plugin myinfo =
 			F O R W A R D   P U B L I C S
 *****************************************************************/
 
+public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
+{
+	g_bLateLoad = bLate;
+	return APLRes_Success;
+}
+
 public void OnPluginStart()
 {
 	LoadTranslation("callvote_kicklimit.phrases");
@@ -79,14 +88,17 @@ public void OnPluginStart()
 
 	AutoExecConfig(false, "callvote_kicklimit");
 
-	for (int i = 1; i <= MaxClients; i++)
+	if(g_bLateLoad)
 	{
-		if (!IsClientConnected(i) || IsFakeClient(i))
-			continue;
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			if (!IsClientConnected(i) || IsFakeClient(i))
+				continue;
 
-		char sSteamId[MAX_AUTHID_LENGTH];
-		GetClientAuthId(i, AuthId_Steam2, sSteamId, MAX_AUTHID_LENGTH);
-		OnClientAuthorized(i, sSteamId);
+			char sSteamId[MAX_AUTHID_LENGTH];
+			GetClientAuthId(i, AuthId_Steam2, sSteamId, MAX_AUTHID_LENGTH);
+			OnClientAuthorized(i, sSteamId);
+		}
 	}
 }
 
@@ -248,13 +260,9 @@ public Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers
 
 Action Timer_CallVote_Pass(Handle timer)
 {
-	if (!g_iCaller)
-	{
-		g_Players[g_iCaller].Target = 0;
-		return Plugin_Stop;
-	}
+	if (IsClientInGame(g_iCaller))
+		CPrintToChat(g_iCaller, "%t %t", "Tag", "KickLimit", g_Players[g_iCaller].Kick, g_cvarKickLimit.IntValue);
 
-	CPrintToChat(g_iCaller, "%t %t", "Tag", "KickLimit", g_Players[g_iCaller].Kick, g_cvarKickLimit.IntValue);
 	g_Players[g_iCaller].Target = 0;
 	return Plugin_Stop;
 }
