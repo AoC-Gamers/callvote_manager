@@ -347,13 +347,16 @@ public Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 
 		int iTarget = GetClientOfUserId(GetCmdArgInt(2));
 
+		if (iTarget == 0)
+			return Plugin_Handled;
+
 		if (g_cvarSTVInmunity.BoolValue && IsClientConnected(iClient) && IsClientSourceTV(iTarget))
 		{
 			CPrintToChat(iClient, "%t %t", "Tag", "SourceTVKick");
 			return Plugin_Handled;
 		}
 
-		if (g_cvarBotInmunity.BoolValue && IsClientConnected(iClient) && !IsClientSourceTV(iTarget) && IsFakeClient(iTarget))
+		if (g_cvarBotInmunity.BoolValue && IsClientConnected(iClient) && IsFakeClient(iTarget))
 		{
 			CPrintToChat(iClient, "%t %t", "Tag", "BotKick");
 			return Plugin_Handled;
