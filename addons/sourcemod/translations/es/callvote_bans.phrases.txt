@@ -1,5 +1,9 @@
 "Phrases"
 {
+	"Tag"
+	{
+		"en"		"[{olive}CallVote{default}]"
+	}
 	"Usage"
 	{
 		"es"		"{green}Uso{default}"

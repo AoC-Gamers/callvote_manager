@@ -1,5 +1,9 @@
 "Phrases"
 {
+	"Tag"
+	{
+		"en"		"[{olive}CallVote{default}]"
+	}
 	"PluginDisabled"
 	{
 		"es"		"Plugin {red}desactivado{default}."
