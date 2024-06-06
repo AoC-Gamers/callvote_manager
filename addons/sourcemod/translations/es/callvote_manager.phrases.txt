@@ -2,7 +2,7 @@
 {
 	"Tag"
 	{
-		"en"		"[{olive}CallVote{default}]"
+		"es"		"[{olive}CallVote{default}]"
 	}
 	"PluginDisabled"
 	{
