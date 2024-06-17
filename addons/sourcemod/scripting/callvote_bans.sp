@@ -718,6 +718,13 @@ int PlayerInGame(const char[] sSteamID)
 	return -1;
 }
 
+/**
+ * Adds a separator to the given message if there are blocked votes.
+ *
+ * @param sMessage The message to add the separator to.
+ * @param iSize The size of the message buffer.
+ * @param iBlockedVotes The number of blocked votes.
+ */
 void AddSeparator(char[] sMessage, int iSize, int iBlockedVotes)
 {
 	if (iBlockedVotes > 0)
