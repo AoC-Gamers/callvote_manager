@@ -49,10 +49,7 @@ stock ConVar
 	g_cvarDebug;
 
 stock Database
-		   g_hDatabase;
-
-#if !defined _callvote_votetye_included
-#define _callvote_votetye_included
+	g_hDatabase;
 
 enum TypeVotes
 {
@@ -76,8 +73,6 @@ stock char sTypeVotes[TypeVotes_Size][] = {
 	"ChangeChapter",
 	"ChangeAllTalk"
 };
-
-#endif
 
 /**
  * Check if the translation file exists

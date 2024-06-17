@@ -1,35 +1,3 @@
-/**
- * vim: set ts=4 sw=4 tw=99 noet :
- * =============================================================================
- * SourceMod (C)2004-2014 AlliedModders LLC.  All rights reserved.
- * =============================================================================
- *
- * This file is part of the SourceMod/SourcePawn SDK.
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License, version 3.0, as published by the
- * Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * As a special exception, AlliedModders LLC gives you permission to link the
- * code of this program (as well as its derivative works) to "Half-Life 2," the
- * "Source Engine," the "SourcePawn JIT," and any Game MODs that run on software
- * by the Valve Corporation.  You must obey the GNU General Public License in
- * all respects for all other code used.  Additionally, AlliedModders LLC grants
- * this exception to all derivative works.  AlliedModders LLC defines further
- * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
- * or <http://www.sourcemod.net/license.php>.
- *
- * Version: $Id$
- */
-
 #if defined _callvotekicklimit_sql_included
 	#endinput
 #endif
@@ -90,6 +58,13 @@ Action Command_CreateSQL(int iClient, int iArgs)
 			P L U G I N   F U N C T I O N S
 *****************************************************************/
 
+/**
+ * Inserts a record into the `callvote_kicklimit` table in the database.
+ *
+ * @param sClientID The authid of the client initiating the vote.
+ * @param sTargetID The authid of the target player being voted to be kicked.
+ * @return True if the record was successfully inserted, false otherwise.
+ */
 bool sqlinsert(const char[] sClientID, const char[] sTargetID)
 {
 	if (!g_cvarSQL.BoolValue)
@@ -110,15 +85,28 @@ bool sqlinsert(const char[] sClientID, const char[] sTargetID)
 	return true;
 }
 
-void  GetCountKick(int iClient, const char[] sSteamID)
+/**
+ * Retrieves the count of kick votes for a specific client and SteamID within the last 24 hours.
+ *
+ * @param iClient The client index.
+ * @param sSteamID The SteamID of the client.
+ */
+void GetCountKick(int iClient, const char[] sSteamID)
 {
-	char
-		sQuery[255];
-	
+	char sQuery[255];
+
 	g_hDatabase.Format(sQuery, sizeof(sQuery), "SELECT COUNT(*) FROM callvote_kicklimit WHERE created >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY)) AND authid = '%s';", sSteamID);
 	g_hDatabase.Query(CallBack_GetCountKick, sQuery, GetClientUserId(iClient));
 }
 
+/**
+ * Callback function for retrieving the count of kicks from the database.
+ *
+ * @param db The database connection.
+ * @param results The result set containing the count of kicks.
+ * @param error The error message, if any.
+ * @param data The user ID associated with the client.
+ */
 public void CallBack_GetCountKick(Database db, DBResultSet results, const char[] error, any data)
 {
 	int iClient = GetClientOfUserId(data);
@@ -136,6 +124,6 @@ public void CallBack_GetCountKick(Database db, DBResultSet results, const char[]
 	}
 
 	g_Players[iClient].Kick = iKick;
-	if(!iKick)
+	if (!iKick)
 		IsNewClient(iClient);
-}	
+}

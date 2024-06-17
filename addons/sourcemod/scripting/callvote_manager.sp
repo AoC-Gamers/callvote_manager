@@ -75,7 +75,8 @@ ConVar
 	g_cvarBotInmunity;
 
 bool
-	g_bBuiltinVotes = false;
+	g_bBuiltinVotes = false,
+	g_bLateLoad;
 
 char
 	g_sReason[MAX_REASON_LENGTH + 1];
@@ -115,16 +116,17 @@ public Plugin myinfo =
 			F O R W A R D   P U B L I C S
 *****************************************************************/
 
-public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
 {
 	// <builtinvotes>
 	MarkNativeAsOptional("IsBuiltinVoteInProgress");
 	MarkNativeAsOptional("CheckBuiltinVoteDelay");
 
-	RegPluginLibrary("callvotemanager");
 	g_ForwardCallVote = CreateGlobalForward("CallVote_Start", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	CreateNative("CallVote_Reject", Native_CallVote_Reject);
 
+	RegPluginLibrary("callvotemanager");
+	g_bLateLoad = bLate;
 	return APLRes_Success;
 }
 
@@ -186,6 +188,9 @@ public void OnPluginStart()
 	HookEvent("vote_cast_no", Event_VoteCastNo);
 
 	AutoExecConfig(false, "callvote_manager");
+
+	if(g_bLateLoad)
+		g_bBuiltinVotes = LibraryExists("BuiltinVotes");
 }
 
 

@@ -3,7 +3,6 @@
 
 #include <sourcemod>
 #include <colors>
-#include <callvote_stock>
 
 #undef REQUIRE_PLUGIN
 #include <callvotemanager>

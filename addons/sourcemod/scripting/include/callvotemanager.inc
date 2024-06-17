@@ -35,33 +35,7 @@
 #endif
 #define _callvotemanager_included
 
-#if !defined _callvote_votetye_included
-#define _callvote_votetye_included
-
-enum TypeVotes
-{
-	ChangeDifficulty = 0,
-	RestartGame		 = 1,
-	Kick			 = 2,
-	ChangeMission	 = 3,
-	ReturnToLobby	 = 4,
-	ChangeChapter	 = 5,
-	ChangeAllTalk	 = 6,
-
-	TypeVotes_Size	 = 7
-};
-
-stock char sTypeVotes[TypeVotes_Size][] = {
-	"ChangeDifficulty",
-	"RestartGame",
-	"Kick",
-	"ChangeMission",
-	"ReturnToLobby",
-	"ChangeChapter",
-	"ChangeAllTalk"
-};
-#endif
-
+#include <callvote_stock>
 #define MAX_REASON_LENGTH 512
 
 /**

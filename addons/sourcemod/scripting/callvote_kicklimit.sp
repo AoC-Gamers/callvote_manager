@@ -3,7 +3,6 @@
 
 #include <sourcemod>
 #include <colors>
-#include <callvote_stock>
 
 #undef REQUIRE_PLUGIN
 #include <callvotemanager>
@@ -36,6 +35,7 @@ ConVar
 	g_cvarKickLimit;
 
 bool
+	g_bCallVoteManager,
 	g_bLateLoad = false;
 
 /*****************************************************************
@@ -67,6 +67,23 @@ public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr
 	return APLRes_Success;
 }
 
+public void OnAllPluginsLoaded()
+{
+	g_bCallVoteManager = LibraryExists("callvotemanager");
+}
+
+public void OnLibraryRemoved(const char[] sName)
+{
+	if (StrEqual(sName, "callvotemanager"))
+		g_bCallVoteManager = false;
+}
+
+public void OnLibraryAdded(const char[] sName)
+{
+	if (StrEqual(sName, "callvotemanager"))
+		g_bCallVoteManager = true;
+}
+
 public void OnPluginStart()
 {
 	LoadTranslation("callvote_kicklimit.phrases");
@@ -88,17 +105,23 @@ public void OnPluginStart()
 
 	AutoExecConfig(false, "callvote_kicklimit");
 
-	if(g_bLateLoad)
-	{
-		for (int i = 1; i <= MaxClients; i++)
-		{
-			if (!IsClientConnected(i) || IsFakeClient(i))
-				continue;
+	if(!g_bLateLoad)
+		return;
+	
+	g_bCallVoteManager = LibraryExists("callvotemanager");
+	if(!g_bCallVoteManager)
+		return;
 
-			char sSteamId[MAX_AUTHID_LENGTH];
-			GetClientAuthId(i, AuthId_Steam2, sSteamId, MAX_AUTHID_LENGTH);
-			OnClientAuthorized(i, sSteamId);
-		}
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientConnected(i) || IsFakeClient(i))
+			continue;
+
+		char sSteamId[MAX_AUTHID_LENGTH];
+		if(!GetClientAuthId(i, AuthId_Steam2, sSteamId, MAX_AUTHID_LENGTH))
+			continue;
+
+		OnClientAuthorized(i, sSteamId);
 	}
 }
 
@@ -179,11 +202,7 @@ public void OnClientAuthorized(int iClient, const char[] sAuth)
 		return;
 
 	if (g_cvarSQL.BoolValue)
-	{
-		//if (!GetCountKick(iClient, sAuth))
-		//	IsNewClient(iClient);
 		GetCountKick(iClient, sAuth);
-	}
 	else
 	{
 		if (!IsClientRegistred(iClient, sAuth))
@@ -233,38 +252,32 @@ public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
  */
 public Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
 {
-	if (!g_cvarEnable.BoolValue)
+	if (!g_cvarEnable.BoolValue || !g_bCallVoteManager)
 		return Plugin_Continue;
 
 	if (g_iCaller == 0)
 		return Plugin_Continue;
 
-	char sIssue[128];
-	hBf.ReadString(sIssue, 128);
+	char sIssue[64];
+	hBf.ReadString(sIssue, 64);
 
-	if (strcmp(sIssue, "#L4D_vote_kick_player"))
-	{
-		char sParam1[128];
-		hBf.ReadString(sParam1, 128);
+	if (!StrEqual(sIssue, "#L4D_vote_kick_player"))
+			return Plugin_Continue;
 
-		g_Players[g_iCaller].Kick++;
+	char sParam1[128];
+	hBf.ReadString(sParam1, 128);
 
-		if (g_cvarSQL.BoolValue)
-			sqlinsert(g_Players[g_iCaller].ClientID, g_Players[g_iCaller].TargetID);
+	g_Players[g_iCaller].Kick++;
 
-		CreateTimer(0.1, Timer_CallVote_Pass, TIMER_FLAG_NO_MAPCHANGE);
-	}
+	if (g_cvarSQL.BoolValue)
+		sqlinsert(g_Players[g_iCaller].ClientID, g_Players[g_iCaller].TargetID);
 
-	return Plugin_Continue;
-}
-
-Action Timer_CallVote_Pass(Handle timer)
-{
-	if (IsClientInGame(g_iCaller))
+	if (IsClientInGame(g_iCaller) && !IsFakeClient(g_iCaller))
 		CPrintToChat(g_iCaller, "%t %t", "Tag", "KickLimit", g_Players[g_iCaller].Kick, g_cvarKickLimit.IntValue);
 
 	g_Players[g_iCaller].Target = 0;
-	return Plugin_Stop;
+
+	return Plugin_Continue;
 }
 
 /*
@@ -276,15 +289,16 @@ Action Timer_CallVote_Pass(Handle timer)
  */
 public Action Message_VoteFail(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
 {
-	if (!g_cvarEnable.BoolValue)
+	if (!g_cvarEnable.BoolValue || !g_bCallVoteManager)
 		return Plugin_Continue;
 
 	char sIssue[128];
 	hBf.ReadString(sIssue, 128);
 
-	if (strcmp(sIssue, "#L4D_vote_kick_player"))
-		g_Players[g_iCaller].Target = 0;
+	if (StrEqual(sIssue, "#L4D_vote_kick_player"))
+		return Plugin_Continue;
 
+	g_Players[g_iCaller].Target = 0;
 	return Plugin_Continue;
 }
 
@@ -292,12 +306,24 @@ public Action Message_VoteFail(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers
 			P L U G I N   F U N C T I O N S
 *****************************************************************/
 
+/**
+ * Resets the kick and target values for a new client.
+ *
+ * @param iClient The client index.
+ */
 void IsNewClient(int iClient)
 {
-	g_Players[iClient].Kick	  = 0;
+	g_Players[iClient].Kick = 0;
 	g_Players[iClient].Target = 0;
 }
 
+/**
+ * Checks if a client is registered for kick voting.
+ *
+ * @param iClient The client index to check.
+ * @param sAuth The client's authentication string.
+ * @return True if the client is registered, false otherwise.
+ */
 bool IsClientRegistred(int iClient, const char[] sAuth)
 {
 	for (int i = 1; i <= MAXPLAYERS; i++)
@@ -310,11 +336,11 @@ bool IsClientRegistred(int iClient, const char[] sAuth)
 			if (i == iClient)
 				return true;
 			// Move the customer's saved data to their new ID
-			g_Players[iClient].Kick	  = g_Players[i].Kick;
+			g_Players[iClient].Kick    = g_Players[i].Kick;
 			g_Players[iClient].Target = 0;
 
 			// Clear the old ID
-			g_Players[i].Kick	= 0;
+			g_Players[i].Kick    = 0;
 			g_Players[i].Target = 0;
 			return true;
 		}
