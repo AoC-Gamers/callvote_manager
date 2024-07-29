@@ -12,7 +12,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION "1.0"
+#define PLUGIN_VERSION "1.0.1"
 
 /**
  * Player profile.
@@ -31,10 +31,6 @@ PlayerBans
 bool
 	g_bshowCooldown;
 
-bool
-	g_bCallVoteManager,
-	g_bLateLoad = false;
-
 /*****************************************************************
 			P L U G I N   I N F O
 *****************************************************************/
@@ -51,29 +47,6 @@ public Plugin myinfo =
 /*****************************************************************
 			F O R W A R D   P U B L I C S
 *****************************************************************/
-
-public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
-{
-	g_bLateLoad = bLate;
-	return APLRes_Success;
-}
-
-public void OnAllPluginsLoaded()
-{
-	g_bCallVoteManager = LibraryExists("callvotemanager");
-}
-
-public void OnLibraryRemoved(const char[] sName)
-{
-	if (StrEqual(sName, "callvotemanager"))
-		g_bCallVoteManager = false;
-}
-
-public void OnLibraryAdded(const char[] sName)
-{
-	if (StrEqual(sName, "callvotemanager"))
-		g_bCallVoteManager = true;
-}
 
 public void OnPluginStart()
 {
@@ -92,25 +65,6 @@ public void OnPluginStart()
 	AutoExecConfig(false, "callvote_bans");
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 	g_hDatabase = Connect("callvote");
-
-	if(!g_bLateLoad)
-		return;
-
-	g_bCallVoteManager = LibraryExists("callvotemanager");
-	if(!g_bCallVoteManager)
-		return;
-
-	char auth[64];
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientConnected(i) || IsFakeClient(i))
-			continue;
-
-		if (!GetClientAuthId(i, AuthId_Engine, auth, sizeof(auth)))
-			continue;
-
-		OnClientAuthorized(i, auth);
-	}
 }
 
 Action Command_CreateSQL(int iClient, int iArgs)
@@ -628,7 +582,7 @@ void GetBans_Thread(int iClient, const char[] sSteamID = "", bool bOffline = fal
 	g_hDatabase.Query(CallBack_GetBans_Thread, sQuery, GetClientUserId(iClient));
 }
 
-public void CallBack_GetBans_Thread(Database db, DBResultSet results, const char[] error, any data)
+void CallBack_GetBans_Thread(Database db, DBResultSet results, const char[] error, any data)
 {
 	int iClient = GetClientOfUserId(data);
 	if (iClient == CONSOLE)

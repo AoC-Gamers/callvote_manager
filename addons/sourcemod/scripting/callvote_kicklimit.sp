@@ -12,7 +12,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION "1.3.1"
+#define PLUGIN_VERSION "1.3.2"
 
 /**
  * Player profile.
@@ -109,20 +109,6 @@ public void OnPluginStart()
 		return;
 	
 	g_bCallVoteManager = LibraryExists("callvotemanager");
-	if(!g_bCallVoteManager)
-		return;
-
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientConnected(i) || IsFakeClient(i))
-			continue;
-
-		char sSteamId[MAX_AUTHID_LENGTH];
-		if(!GetClientAuthId(i, AuthId_Steam2, sSteamId, MAX_AUTHID_LENGTH))
-			continue;
-
-		OnClientAuthorized(i, sSteamId);
-	}
 }
 
 Action Command_KickCount(int iClient, int sArgs)
@@ -250,7 +236,7 @@ public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
  *			string	details	Vote success translation string
  *			string	param1	Vote winner
  */
-public Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
+Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
 {
 	if (!g_cvarEnable.BoolValue || !g_bCallVoteManager)
 		return Plugin_Continue;
@@ -287,7 +273,7 @@ public Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers
  *	Structure:
  *			byte	team	Team index or 255 for all
  */
-public Action Message_VoteFail(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
+Action Message_VoteFail(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
 {
 	if (!g_cvarEnable.BoolValue || !g_bCallVoteManager)
 		return Plugin_Continue;

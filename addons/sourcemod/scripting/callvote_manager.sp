@@ -13,7 +13,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION		  "1.4"
+#define PLUGIN_VERSION		  "1.4.1"
 
 enum CampaignCode
 {
@@ -189,8 +189,10 @@ public void OnPluginStart()
 
 	AutoExecConfig(false, "callvote_manager");
 
-	if(g_bLateLoad)
-		g_bBuiltinVotes = LibraryExists("BuiltinVotes");
+	if(!g_bLateLoad)
+		return;
+
+	g_bBuiltinVotes = LibraryExists("BuiltinVotes");
 }
 
 
@@ -215,7 +217,7 @@ public void OnMapStart()
  * @param args Arguments
  * @return Plugin_Continue if the vote is allowed, Plugin_Handled otherwise
  */
-public Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
+Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 {
 	if (!g_cvarEnable.BoolValue)
 		return Plugin_Continue;
@@ -587,7 +589,7 @@ int Native_CallVote_Reject(Handle plugin, int numParams)
  *	"entityid"		"long"	// entity id of the voter
  *
  */
-public void Event_VoteCastYes(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+void Event_VoteCastYes(Event hEvent, const char[] sEventName, bool bDontBroadcast)
 {
 	if (!g_cvarProgress.BoolValue)
 		return;
@@ -611,7 +613,7 @@ public void Event_VoteCastYes(Event hEvent, const char[] sEventName, bool bDontB
  * "entityid"		"long"	// entity id of the voter
  *
  */
-public void Event_VoteCastNo(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+void Event_VoteCastNo(Event hEvent, const char[] sEventName, bool bDontBroadcast)
 {
 	if (!g_cvarProgress.BoolValue)
 		return;
