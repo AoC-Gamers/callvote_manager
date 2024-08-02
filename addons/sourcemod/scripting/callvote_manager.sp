@@ -13,7 +13,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION		  "1.4.1"
+#define PLUGIN_VERSION "1.4.2"
 
 enum CampaignCode
 {
@@ -52,27 +52,26 @@ char sCampaignCode[CampaignCode_size][] = {
 
 ConVar
 	g_cvarBuiltinVote,
-	g_cvarSpecVote,
 	g_cvarAnnouncer,
 	g_cvarProgress,
 	g_cvarProgressAnony,
-	g_cvarCreationTimer,
-	g_cvarVoteDuration,
 
-	g_cvarDifficulty,
-	g_cvarRestart,
-	g_cvarMission,
 	g_cvarLobby,
 	g_cvarChapter,
 	g_cvarAllTalk,
 
-	g_cvarKick,
-	g_cvarBanDuration,
 	g_cvarAdminInmunity,
 	g_cvarVipInmunity,
 	g_cvarSTVInmunity,
 	g_cvarSelfInmunity,
-	g_cvarBotInmunity;
+	g_cvarBotInmunity,
+
+	sv_vote_issue_change_difficulty_allowed,
+	sv_vote_issue_restart_game_allowed,
+	sv_vote_issue_kick_allowed,
+	sv_vote_issue_change_mission_allowed,
+	sv_vote_creation_timer,
+	z_difficulty;
 
 bool
 	g_bBuiltinVotes = false,
@@ -81,7 +80,7 @@ bool
 char
 	g_sReason[MAX_REASON_LENGTH + 1];
 
-float 
+float
 	g_fLastVote;
 
 int
@@ -97,12 +96,10 @@ GlobalForward
 *****************************************************************/
 
 #include "callvote/manager_sql.sp"
-#include "callvote/manager_convar.sp"
 
 /*****************************************************************
 			P L U G I N   I N F O
 *****************************************************************/
-
 public Plugin myinfo =
 {
 	name		= "Call Vote Manager",
@@ -110,13 +107,15 @@ public Plugin myinfo =
 	description = "Manage call vote system",
 	version		= PLUGIN_VERSION,
 	url			= "https://github.com/lechuga16/callvote_manager"
+
 }
 
 /*****************************************************************
 			F O R W A R D   P U B L I C S
 *****************************************************************/
 
-public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
+public APLRes
+	AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_max)
 {
 	// <builtinvotes>
 	MarkNativeAsOptional("IsBuiltinVoteInProgress");
@@ -152,34 +151,44 @@ public void OnPluginStart()
 	LoadTranslation("callvote_manager.phrases");
 	CreateConVar("sm_cvm_version", PLUGIN_VERSION, "Plugin version", FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD);
 
-	g_cvarDebug			= CreateConVar("sm_cvm_debug", "0", "Debug messagess", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarEnable		= CreateConVar("sm_cvm_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarLog			= CreateConVar("sm_cvm_log", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
-	g_cvarBuiltinVote	= CreateConVar("sm_cvm_builtinvote", "1", "<builtinvotes> support", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarSpecVote		= CreateConVar("sm_cvm_specvote", "0", "Allow spectators to call vote", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarAnnouncer		= CreateConVar("sm_cvm_announcer", "1", "Announce voting calls", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarProgress		= CreateConVar("sm_cvm_progress", "1", "Show voting progress", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarProgressAnony = CreateConVar("sm_cvm_progressanony", "0", "Show voting progress anonymously", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarCreationTimer = CreateConVar("sm_cvm_creationtimer", "0", "How often someone can individually call a vote. -1 Default", FCVAR_NOTIFY, true, -1.0);
-	g_cvarVoteDuration	= CreateConVar("sm_cvm_voteduration", "-1", "How long to allow voting on an issue. -1 Default", FCVAR_NOTIFY, true, -1.0);
+	g_cvarDebug								= CreateConVar("sm_cvm_debug", "0", "Debug messagess", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarEnable							= CreateConVar("sm_cvm_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarLog								= CreateConVar("sm_cvm_log", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
+	g_cvarBuiltinVote						= CreateConVar("sm_cvm_builtinvote", "1", "<builtinvotes> support", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarAnnouncer							= CreateConVar("sm_cvm_announcer", "1", "Announce voting calls", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarProgress							= CreateConVar("sm_cvm_progress", "1", "Show voting progress", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarProgressAnony						= CreateConVar("sm_cvm_progressanony", "0", "Show voting progress anonymously", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
-	g_cvarDifficulty	= CreateConVar("sm_cvm_difficulty", "1", "Enable vote ChangeDifficulty", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarRestart		= CreateConVar("sm_cvm_restart", "1", "Enable vote RestartGame", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarMission		= CreateConVar("sm_cvm_mission", "1", "Enable vote ChangeMission", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarLobby			= CreateConVar("sm_cvm_lobby", "1", "Enable vote ReturnToLobby", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarChapter		= CreateConVar("sm_cvm_chapter", "1", "Enable vote ChangeChapter", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarAllTalk		= CreateConVar("sm_cvm_alltalk", "1", "Enable vote ChangeAllTalk", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarLobby								= CreateConVar("sm_cvm_lobby", "1", "Enable vote ReturnToLobby", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarChapter							= CreateConVar("sm_cvm_chapter", "1", "Enable vote ChangeChapter", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarAllTalk							= CreateConVar("sm_cvm_alltalk", "1", "Enable vote ChangeAllTalk", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
 	// ConVar that refer to the kick vote call
-	g_cvarKick			= CreateConVar("sm_cvm_kick", "1", "Enable vote Kick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarBanDuration	= CreateConVar("sm_cvm_banduration", "-1", "How long should a kick vote ban someone from the server? (in minutes). -1 Default", FCVAR_NOTIFY, true, -1.0);
-	g_cvarAdminInmunity = CreateConVar("sm_cvm_admininmunity", "", "Admins are immune to kick votes. Specify admin flags or blank.", FCVAR_NOTIFY);
-	g_cvarVipInmunity	= CreateConVar("sm_cvm_vipinmunity", "", "Vips are immune to kick votes, Specify admin flags or blank.", FCVAR_NOTIFY);
-	g_cvarSTVInmunity	= CreateConVar("sm_cvm_stvinmunity", "1", "SourceTV is immune to votekick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarSelfInmunity	= CreateConVar("sm_cvm_selfinmunity", "1", "Immunity to self-kick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarBotInmunity	= CreateConVar("sm_cvm_botinmunity", "1", "Immunity to bots", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarAdminInmunity						= CreateConVar("sm_cvm_admininmunity", "", "Admins are immune to kick votes. Specify admin flags or blank.", FCVAR_NOTIFY);
+	g_cvarVipInmunity						= CreateConVar("sm_cvm_vipinmunity", "", "Vips are immune to kick votes, Specify admin flags or blank.", FCVAR_NOTIFY);
+	g_cvarSTVInmunity						= CreateConVar("sm_cvm_stvinmunity", "1", "SourceTV is immune to votekick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarSelfInmunity						= CreateConVar("sm_cvm_selfinmunity", "1", "Immunity to self-kick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarBotInmunity						= CreateConVar("sm_cvm_botinmunity", "1", "Immunity to bots", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
-	OnPluginStart_ConVar();
+	sv_vote_issue_change_difficulty_allowed = FindConVar("sv_vote_issue_change_difficulty_allowed");
+	sv_vote_issue_restart_game_allowed		= FindConVar("sv_vote_issue_restart_game_allowed");
+	sv_vote_issue_change_mission_allowed	= FindConVar("sv_vote_issue_change_mission_allowed");
+	sv_vote_issue_kick_allowed				= FindConVar("sv_vote_issue_kick_allowed");
+	sv_vote_creation_timer					= FindConVar("sv_vote_creation_timer");
+	z_difficulty							= FindConVar("z_difficulty");
+
+	char
+		sTempAdmin[32],
+		sTempVip[32];
+
+	g_cvarAdminInmunity.AddChangeHook(ConVarChanged_AdminInmunity);
+	g_cvarAdminInmunity.GetString(sTempAdmin, sizeof(sTempAdmin));
+	g_iFlagsAdmin = ReadFlagString(sTempAdmin);
+
+	g_cvarVipInmunity.AddChangeHook(ConVarChanged_VipInmunity);
+	g_cvarVipInmunity.GetString(sTempVip, sizeof(sTempVip));
+	g_iFlagsVip = ReadFlagString(sTempVip);
+
 	OnPluginStart_SQL();
 
 	// Listen when a user issues a voting call
@@ -189,20 +198,32 @@ public void OnPluginStart()
 
 	AutoExecConfig(false, "callvote_manager");
 
-	if(!g_bLateLoad)
+	if (!g_bLateLoad)
 		return;
 
 	g_bBuiltinVotes = LibraryExists("BuiltinVotes");
 }
 
+public void ConVarChanged_AdminInmunity(Handle hConVar, const char[] sOldValue, const char[] sNewValue)
+{
+	char sTempAdmin[32];
+	g_cvarAdminInmunity.GetString(sTempAdmin, sizeof(sTempAdmin));
+	g_iFlagsAdmin = ReadFlagString(sTempAdmin);
+}
+
+public void ConVarChanged_VipInmunity(Handle hConVar, const char[] sOldValue, const char[] sNewValue)
+{
+	char sTempVip[32];
+	g_cvarVipInmunity.GetString(sTempVip, sizeof(sTempVip));
+	g_iFlagsVip = ReadFlagString(sTempVip);
+}
 
 public void OnConfigsExecuted()
 {
 	if (!g_cvarEnable.BoolValue)
 		return;
-	
+
 	OnConfigsExecuted_SQL();
-	OnConfigsExecuted_ConVar();
 }
 
 public void OnMapStart()
@@ -230,7 +251,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 	}
 
 	// Check if the client is spectating
-	if (g_cvarSpecVote.BoolValue && L4D_GetClientTeam(iClient) == L4DTeam_Spectator)
+	if (L4D_GetClientTeam(iClient) == L4DTeam_Spectator)
 	{
 		CPrintToChat(iClient, "%t %t", "Tag", "SpecVote");
 		return Plugin_Handled;
@@ -269,10 +290,10 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 	// ------------------------------------------------------------
 	if (strcmp(sVoteType, sTypeVotes[ChangeDifficulty], false) == 0)
 	{
-		if (!g_cvarDifficulty.BoolValue)
+		if (!sv_vote_issue_change_difficulty_allowed.BoolValue)
 		{
 			CPrintToChat(iClient, "%t %t", "Tag", "VoteDisabled");
-			return Plugin_Continue;	   // it is disabled by sv_vote_issue_change_difficulty_allowed
+			return Plugin_Continue;
 		}
 
 		if (iArgs != 2)
@@ -314,7 +335,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 	// ------------------------------------------------------------
 	else if (strcmp(sVoteType, sTypeVotes[RestartGame], false) == 0)
 	{
-		if (!g_cvarRestart.BoolValue)
+		if (!sv_vote_issue_restart_game_allowed.BoolValue)
 		{
 			CPrintToChat(iClient, "%t %t", "Tag", "VoteDisabled");
 			return Plugin_Continue;	   // it is disabled by sv_vote_issue_restart_game_allowed
@@ -346,7 +367,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 	// ------------------------------------------------------------
 	else if (strcmp(sVoteType, sTypeVotes[Kick], false) == 0)
 	{
-		if (!g_cvarKick.BoolValue)
+		if (!sv_vote_issue_kick_allowed.BoolValue)
 		{
 			CPrintToChat(iClient, "%t %t", "Tag", "VoteDisabled");
 			return Plugin_Continue;	   // it is disabled by sv_vote_issue_kick_allowed
@@ -414,7 +435,7 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 	// ------------------------------------------------------------
 	else if (strcmp(sVoteType, sTypeVotes[ChangeMission], false) == 0)
 	{
-		if (!g_cvarMission.BoolValue)
+		if (!sv_vote_issue_change_mission_allowed.BoolValue)
 		{
 			CPrintToChat(iClient, "%t %t", "Tag", "VoteDisabled");
 			return Plugin_Continue;	   // it is disabled by sv_vote_issue_change_mission_allowed
@@ -744,10 +765,10 @@ char[] TeamTranslation(L4DTeam Team)
 	char sBuffer[16];
 	switch (Team)
 	{
-		case L4DTeam_Survivor:	Format(sBuffer, sizeof(sBuffer), "%t", "L4DTeam_Survivor");
-		case L4DTeam_Infected:	Format(sBuffer, sizeof(sBuffer), "%t", "L4DTeam_Infected");
-		case L4DTeam_Spectator:	Format(sBuffer, sizeof(sBuffer), "%t", "L4DTeam_Spectator");
-		default:				Format(sBuffer, sizeof(sBuffer), "%t", "L4DTeam_Unassigned");
+		case L4DTeam_Survivor: Format(sBuffer, sizeof(sBuffer), "%t", "L4DTeam_Survivor");
+		case L4DTeam_Infected: Format(sBuffer, sizeof(sBuffer), "%t", "L4DTeam_Infected");
+		case L4DTeam_Spectator: Format(sBuffer, sizeof(sBuffer), "%t", "L4DTeam_Spectator");
+		default: Format(sBuffer, sizeof(sBuffer), "%t", "L4DTeam_Unassigned");
 	}
 	return sBuffer;
 }

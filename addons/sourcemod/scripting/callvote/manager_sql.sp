@@ -20,7 +20,6 @@ public void OnPluginStart_SQL()
 	RegAdminCmd("sm_cvkl_sql_install", Command_CreateSQL, ADMFLAG_ROOT, "Install SQL tables");
 
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
-	g_hDatabase = Connect("callvote");
 }
 
 Action Command_CreateSQL(int iClient, int iArgs)
