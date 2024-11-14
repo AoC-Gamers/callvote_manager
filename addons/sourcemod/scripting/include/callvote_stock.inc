@@ -140,7 +140,7 @@ stock Database Connect(char[] sConfigName)
  * @param type The TypeVotes enum value to convert.
  * @return The vote flag corresponding to the given TypeVotes value.
  */
-int ConvertTypeVotesToFlags(TypeVotes type)
+stock int ConvertTypeVotesToFlags(TypeVotes type)
 {
 	switch(type)
 	{
