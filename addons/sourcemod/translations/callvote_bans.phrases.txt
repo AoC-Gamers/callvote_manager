@@ -40,6 +40,14 @@
 	{
 		"en"		"{red}Could not{default} connect to database."
 	}
+	"DBTableNotExists"
+	{
+		"en"		"Database {red}not{default} correctly installed."
+	}
+	"InvalidInput"
+	{
+		"en"		"Invalid {red}input{default}."
+	}
 	"PlayerAlreadyBanned"
 	{
 		"en"		"Player already {red}banned{default}."

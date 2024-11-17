@@ -48,9 +48,6 @@ stock ConVar
 	g_cvarEnable,
 	g_cvarDebug;
 
-stock Database
-	g_hDatabase;
-
 enum TypeVotes
 {
 	ChangeDifficulty = 0,
@@ -64,15 +61,21 @@ enum TypeVotes
 	TypeVotes_Size	 = 7
 };
 
-stock char sTypeVotes[TypeVotes_Size][] = {
-	"ChangeDifficulty",
-	"RestartGame",
-	"Kick",
-	"ChangeMission",
-	"ReturnToLobby",
-	"ChangeChapter",
-	"ChangeAllTalk"
-};
+bool
+	g_bSQLConnected,
+	g_bSQLTableExists;
+
+enum SQLDriver
+{
+	SQL_MySQL  = 0,
+	SQL_SQLite = 1,
+}
+
+Database
+	g_db;
+
+SQLDriver
+	g_SQLDriver;
 
 /**
  * Check if the translation file exists
@@ -104,83 +107,187 @@ stock void log(bool onlydebug, const char[] sMessage, any...)
 	if (!g_cvarLog.BoolValue)
 		return;
 
-	static char sFormat[512];
+	static int check = -1;
+	static char
+		sFilename[64],
+		sFormat[1024];
+	
 	VFormat(sFormat, sizeof(sFormat), sMessage, 3);
 	File file = OpenFile(g_sLogPath, "a+");
 
+	GetPluginFilename(null, sFilename, sizeof(sFilename));
+	if ((check = FindCharInString(sFilename, '/', true)) != -1 || (check = FindCharInString(sFilename, '\\', true)) != -1)
+		Format(sFilename, sizeof(sFilename), "%s", sFilename[check + 1]);
+
+	ReplaceString(sFilename, sizeof(sFilename), ".smx", "", false);
+	ReplaceString(sFilename, sizeof(sFilename), "callvote_", "", false);
+
 	if (g_cvarDebug.BoolValue && onlydebug)
-		LogToFileEx(g_sLogPath, "[Debug] %s", sFormat);
+		LogToFileEx(g_sLogPath, "[Debug] [%s] %s", sFilename, sFormat);
 	else if (!onlydebug)
-		LogToFileEx(g_sLogPath, "%s", sFormat);
+		LogToFileEx(g_sLogPath, "[%s] %s", sFilename, sFormat);
 
 	delete file;
 }
 
-stock Database Connect(char[] sConfigName)
+/**
+ * Connects to the database using the specified configuration name.
+ *
+ * @param sConfigName The name of the database configuration to use for the connection.
+ *
+ * This function checks if the specified database configuration exists. If it does not,
+ * it logs an error message and sets the global variable `g_bSQLConnected` to false.
+ * If the configuration exists, it attempts to connect to the database using the provided
+ * configuration name and calls the `ConnectCallback` function upon completion.
+ */
+stock void ConnectDB(char[] sConfigName, char[] sTable = "")
 {
-	char	 sError[255];
-	Database db;
-
 	if (!SQL_CheckConfig(sConfigName))
 	{
-		SetFailState("Database failure: could not find database config: %s", sConfigName);
-		return db;
+		log(false, "[ConnectDB] Database failure: could not find database config: %s", sConfigName);
+		g_bSQLConnected = false;
 	}
-	db = SQL_Connect(sConfigName, true, sError, sizeof(sError));
 
-	if (db == null)
-		log(false, "Could not connect to database: %s", sError);
+	log(true, "[ConnectDB] Data: %s", (sTable[0] == '\0') ? "No additional data" : sTable);
 
-	return db;
-}
-
-/**
- * Converts a TypeVotes enum value to its corresponding vote flag.
- *
- * @param type The TypeVotes enum value to convert.
- * @return The vote flag corresponding to the given TypeVotes value.
- */
-stock int ConvertTypeVotesToFlags(TypeVotes type)
-{
-	switch(type)
+	if (sTable[0] == '\0')
+		Database.Connect(ConnectCallback, sConfigName);
+	else
 	{
-		case ChangeDifficulty: return VOTE_CHANGEDIFFICULTY;
-		case RestartGame: return VOTE_RESTARTGAME;
-		case Kick: return VOTE_KICK;
-		case ChangeMission: return VOTE_CHANGEMISSION;
-		case ReturnToLobby: return VOTE_RETURNTOLOBBY;
-		case ChangeChapter: return VOTE_CHANGECHAPTER;
-		case ChangeAllTalk: return VOTE_CHANGEALLTALK;
-		default: return 0;
+		DataPack dp = new DataPack();
+		dp.WriteString(sTable);
+
+		Database.Connect(ConnectCallback, sConfigName, dp);
 	}
+
 }
 
 /**
- * Checks if a specific vote type is enabled based on the given vote flags.
+ * Callback function for handling database connection.
  *
- * @param voteFlags The vote flags to check against.
- * @param type The type of vote to check.
- * @return True if the vote type is enabled, false otherwise.
+ * @param database  The database connection object.
+ * @param error     The error message if the connection failed.
+ * @param data      Additional data passed to the callback.
+ *
+ * This function is called when a connection to the database is attempted.
+ * It logs the success or failure of the connection, sets the database charset to UTF-8,
+ * and determines the SQL driver being used. It also checks if table exists.
  */
-stock bool IsVoteEnabled(int voteFlags, TypeVotes type)
+stock void ConnectCallback(Database database, const char[] error, any data)
 {
-	int voteFlag = ConvertTypeVotesToFlags(type);
-	return (voteFlags & voteFlag) != 0;
+	if(database == null)
+	{
+		log(false, "[ConnectCallback] Could not connect to database: %s", error);
+		g_bSQLConnected = false;
+	}
+	if (error[0] != '\0')
+	{
+		log(false, "[ConnectCallback] Error to connect to database: %s", error);
+		g_bSQLConnected = false;
+		return;
+	}
+	else
+		g_bSQLConnected = true;
+
+	log(true, "[ConnectCallback] Successfully connected to database.");
+
+	char
+		sSQLDriverName[64];
+
+	g_db = database;
+	database.Driver.GetIdentifier(sSQLDriverName, sizeof(sSQLDriverName));
+	log(true, "[ConnectCallback] Driver: %s", sSQLDriverName);
+
+	if (StrEqual(sSQLDriverName, "mysql", true))
+	{
+		g_SQLDriver = SQL_MySQL;
+		if (database.SetCharset("utf8"))
+			log(true, "[ConnectCallback] Database charset set to UTF-8.");
+		else
+			log(true, "[ConnectCallback] Failed to set database charset.");
+	}
+	else if (StrEqual(sSQLDriverName, "sqlite", true))
+		g_SQLDriver = SQL_SQLite;
+
+	if (data == 0)
+	{
+		log(true, "[ConnectCallback] No additional data provided.");
+		return;
+	}
+
+	char
+		sTable[64];
+
+	DataPack
+		dp = view_as<DataPack>(data);
+
+	dp.Reset();
+	dp.ReadString(sTable, sizeof(sTable));
+	delete dp;
+	g_bSQLTableExists = isTableExists(sTable);
+
+	if (g_bSQLTableExists)
+		log(true, "[ConnectCallback] Table %s exists.", sTable);
+	else
+		log(true, "[ConnectCallback] Table %s does not exist.", sTable);
 }
 
 /**
- * Checks if the given vote type is valid.
+ * Checks if a table exists in the database.
  *
- * @param type The vote type to check.
- * @return True if the vote type is valid, false otherwise.
+ * @param sTable        The name of the table to check.
+ * @return              True if the table exists, false otherwise.
  */
-stock bool IsVoteTypeValid(int iVotesFlag)
+stock bool isTableExists(const char[] sTable)
 {
-    if (iVotesFlag < 1 || iVotesFlag > 127)
-        return false;
+	char
+		sQuery[255],
+		sError[255];
 
-    int allowedVotes = VOTE_CHANGEDIFFICULTY | VOTE_RESTARTGAME | VOTE_KICK | VOTE_CHANGEMISSION | VOTE_RETURNTOLOBBY | VOTE_CHANGECHAPTER | VOTE_CHANGEALLTALK;
-    return (iVotesFlag & allowedVotes) == iVotesFlag;
+	switch (g_SQLDriver)
+	{
+		case SQL_MySQL:
+		{
+			g_db.Format(sQuery, sizeof(sQuery), "SELECT 1 FROM `%s` LIMIT 1", sTable);
+		}
+		case SQL_SQLite:
+		{
+			g_db.Format(sQuery, sizeof(sQuery), "SELECT name FROM sqlite_master WHERE type='table' AND name='%s'", sTable);
+		}
+		default:
+		{
+			log(false, "[isTableExists] Unknown SQL driver.");
+			return false;
+		}
+	}
+
+	DBResultSet QueryTableExists = SQL_Query(g_db, sQuery);
+	if (QueryTableExists == null)
+	{
+		SQL_GetError(g_db, sError, sizeof(sError));
+		log(false, "[isTableExists] Query failed for table '%s': %s", sTable, sError);
+		return false;
+	}
+
+	bool exists = QueryTableExists.FetchRow();
+	delete QueryTableExists;
+
+	return exists;
+}
+
+/**
+ * Logs SQL errors and the corresponding query that caused the error.
+ *
+ * @param db        The database connection handle.
+ * @param sQuery    The SQL query that failed.
+ * @param sName     The name of the source or context where the error occurred.
+ */
+stock logErrorSQL(Database db, const char[] sQuery, const char[] sName)
+{
+	char sSQLError[250];
+	SQL_GetError(db, sSQLError, sizeof(sSQLError));
+	log(false, "[%s] SQL failed: %s", sName, sSQLError);
+	log(false, "[%s] Query dump: %s", sName, sQuery);
 }
 
 /*****************************************************************

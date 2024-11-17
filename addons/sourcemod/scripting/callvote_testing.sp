@@ -12,7 +12,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION	"1.2"
+#define PLUGIN_VERSION	"1.3"
 #define TAG				"[{olive}CallVote Debug{default}]"
 
 ConVar
@@ -31,6 +31,16 @@ ConVar
 	g_cvarCallVoteFailed,
 	g_cvarListenerVote,
 	g_cvarListenerCallVote;
+
+stock char sTypeVotes[TypeVotes_Size][] = {
+	"ChangeDifficulty",
+	"RestartGame",
+	"Kick",
+	"ChangeMission",
+	"ReturnToLobby",
+	"ChangeChapter",
+	"ChangeAllTalk"
+};
 
 /*****************************************************************
 			P L U G I N   I N F O
@@ -67,8 +77,10 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
 	CreateConVar("sm_cvt_version", PLUGIN_VERSION, "Plugin version", FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD);
+
+	g_cvarDebug			   = CreateConVar("sm_cvt_debug", "1", "Enable debug", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvarEnable		   = CreateConVar("sm_cvt_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarLog			   = CreateConVar("sm_cvt_logs", "1", "Enable logging", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_cvarDebug			   = CreateConVar("sm_cvt_debug", "0", "Enable debug", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarForwardManager   = CreateConVar("sm_cvt_forwardmanager", "1", "Enable manager forwards", FCVAR_NONE, true, 0.0, true, 1.0);
 
 	g_cvarVoteStarted	   = CreateConVar("sm_cvt_votestarted", "1", "Enable vote_started event", FCVAR_NONE, true, 0.0, true, 1.0);
@@ -107,6 +119,55 @@ public void OnPluginStart()
 
 	// Build log path
 	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
+
+	RegConsoleCmd("sm_cvt_connected", Cmd_Connected, "Check if the database is connected");
+}
+
+Action Cmd_Connected(int iClient, int iArgs)
+{
+	if (!g_bSQLConnected)
+	{
+		CReplyToCommand(iClient, "%s {red}Could not{default} connect to database.", TAG);
+		return Plugin_Handled;
+	}
+	else
+		CReplyToCommand(iClient, "%s Database connected {green}successfully{default}.", TAG);
+
+	CReplyToCommand(iClient, "%s Driver SQL: %s", TAG, g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite");
+
+	char sTableLog[] = "callvote_log";
+
+	if (isTableExists(sTableLog))
+		CReplyToCommand(iClient, "%s Table %s exists.", TAG, sTableLog);
+	else
+		CReplyToCommand(iClient, "%s Table %s does not exist.", TAG, sTableLog);
+
+	char sTableBans[] = "callvote_bans";
+
+	if (isTableExists(sTableBans))
+		CReplyToCommand(iClient, "%s Table %s exists.", TAG, sTableBans);
+	else
+		CReplyToCommand(iClient, "%s Table %s does not exist.", TAG, sTableBans);
+
+	char sTableKick[] = "callvote_kicklimit";
+
+	if (isTableExists(sTableKick))
+		CReplyToCommand(iClient, "%s Table %s exists.", TAG, sTableKick);
+	else
+		CReplyToCommand(iClient, "%s Table %s does not exist.", TAG, sTableKick);
+
+	return Plugin_Handled;
+}
+
+public void OnConfigsExecuted()
+{
+	if (!g_cvarEnable.BoolValue)
+		return;
+
+	if (g_db != null)
+		return;
+
+	ConnectDB("callvote");
 }
 
 public void CallVote_Start(int iClient, TypeVotes votes, int iTarget)
@@ -123,14 +184,14 @@ public void CallVote_Start(int iClient, TypeVotes votes, int iTarget)
 
 	if (votes == Kick)
 	{
-		Format(sMessage, sizeof(sMessage), "%s CallVoteManager {green}%s{default}: {blue}%N{default} ({blue}%s{default}) ({blue}%N{default}) called the vote.", TAG, sTypeVotes[votes], iClient, sSteamID, iTarget);
+		Format(sMessage, sizeof(sMessage), "%s [CallVote_Start] {green}%s{default}: {blue}%N{default} ({blue}%s{default}) ({blue}%N{default}) called the vote.", TAG, sTypeVotes[votes], iClient, sSteamID, iTarget);
 		CPrintToChatAll(sMessage);
 		CRemoveTags(sMessage, sizeof(sMessage));
 		log(false, sMessage);
 	}
 	else
 	{
-		Format(sMessage, sizeof(sMessage), "%s CallVoteManager {green}%s{default}: {blue}%N{default} ({blue}%s{default}) called the vote.", TAG, sTypeVotes[votes], iClient, sSteamID);
+		Format(sMessage, sizeof(sMessage), "%s [CallVote_Start] {green}%s{default}: {blue}%N{default} ({blue}%s{default}) called the vote.", TAG, sTypeVotes[votes], iClient, sSteamID);
 		CPrintToChatAll(sMessage);
 		CRemoveTags(sMessage, sizeof(sMessage));
 		log(false, sMessage);
@@ -158,8 +219,8 @@ public void Event_VoteStarted(Event hEvent, const char[] sEventName, bool bDontB
 	hEvent.GetString("param1", sParam1, 128);
 	int iTeam	   = hEvent.GetInt("team");
 	int iInitiator = hEvent.GetInt("initiator");
-	CPrintToChatAll("%s VoteStarted: issue: %s, param1: %s, team: %d, initiator: %d", TAG, sIssue, sParam1, iTeam, iInitiator);
-	log(false, "VoteStarted: issue: %s, param1: %s, team: %d, initiator: %d", sIssue, sParam1, iTeam, iInitiator);
+	log(false, "[Event_VoteStarted] issue: %s, param1: %s, team: %d, initiator: %d", sIssue, sParam1, iTeam, iInitiator);
+	CPrintToChatAll("%s [Event_VoteStarted] issue: %s, param1: %s, team: %d, initiator: %d", TAG, sIssue, sParam1, iTeam, iInitiator);
 }
 
 /*
@@ -170,8 +231,8 @@ public void Event_VoteEnded(Event hEvent, const char[] sEventName, bool bDontBro
 	if (!g_cvarVoteEnded.BoolValue)
 		return;
 
-	CPrintToChatAll("%s VoteEnded", TAG);
-	log(false, "VoteEnded");
+	log(false, "[Event_VoteEnded]");
+	CPrintToChatAll("%s [Event_VoteEnded]", TAG);
 }
 
 /*
@@ -190,8 +251,8 @@ public void Event_VoteChanged(Event hEvent, const char[] sEventName, bool bDontB
 	int iYesVotes		= hEvent.GetInt("yesVotes");
 	int iNoVotes		= hEvent.GetInt("noVotes");
 	int iPotentialVotes = hEvent.GetInt("potentialVotes");
-	CPrintToChatAll("%s VoteChanged: yesVotes: %d, noVotes: %d, potentialVotes: %d", TAG, iYesVotes, iNoVotes, iPotentialVotes);
-	log(false, "VoteChanged: yesVotes: %d, noVotes: %d, potentialVotes: %d", iYesVotes, iNoVotes, iPotentialVotes);
+	log(false, "[Event_VoteChanged] yesVotes: %d, noVotes: %d, potentialVotes: %d", iYesVotes, iNoVotes, iPotentialVotes);
+	CPrintToChatAll("%s [Event_VoteChanged] yesVotes: %d, noVotes: %d, potentialVotes: %d", TAG, iYesVotes, iNoVotes, iPotentialVotes);
 }
 
 /*
@@ -213,8 +274,8 @@ public void Event_VotePassed(Event hEvent, const char[] sEventName, bool bDontBr
 	hEvent.GetString("details", sDetails, 128);
 	hEvent.GetString("param1", sParam1, 128);
 	int iTeam = hEvent.GetInt("team");
-	CPrintToChatAll("%s VotePassed: details: %s, param1: %s, team: %d", TAG, sDetails, sParam1, iTeam);
-	log(false, "VotePassed: details: %s, param1: %s, team: %d", sDetails, sParam1, iTeam);
+	log(false, "[Event_VotePassed] details: %s, param1: %s, team: %d", sDetails, sParam1, iTeam);
+	CPrintToChatAll("%s [Event_VotePassed] details: %s, param1: %s, team: %d", TAG, sDetails, sParam1, iTeam);
 }
 
 /*
@@ -229,8 +290,8 @@ public void Event_VoteFailed(Event hEvent, const char[] sEventName, bool bDontBr
 		return;
 
 	int iTeam = hEvent.GetInt("team");
-	CPrintToChatAll("%s VoteFailed: team: %d", TAG, iTeam);
-	log(false, "VoteFailed: team: %d", iTeam);
+	log(false, "[Event_VoteFailed] team: %d", iTeam);
+	CPrintToChatAll("%s [Event_VoteFailed] team: %d", TAG, iTeam);
 }
 
 /*
@@ -251,8 +312,8 @@ public void Event_VoteCastYes(Event hEvent, const char[] sEventName, bool bDontB
 	if (!IsValidClientIndex(iEntityid))
 		return;
 
-	log(false, "VoteCastYes: team: %d, entityid: %d", iTeam, iEntityid);
-	CPrintToChatAll("%s VoteCastYes: team: %d, entityid: %d", TAG, iTeam, iEntityid);
+	log(false, "[Event_VoteCastYes] team: %d, entityid: %d", iTeam, iEntityid);
+	CPrintToChatAll("%s [Event_VoteCastYes] team: %d, entityid: %d", TAG, iTeam, iEntityid);
 }
 
 /*
@@ -273,8 +334,8 @@ public void Event_VoteCastNo(Event hEvent, const char[] sEventName, bool bDontBr
 	if (!IsValidClientIndex(iEntityid))
 		return;
 
-	log(false, "VoteCastNo: team: %d, entityid: %d", iTeam, iEntityid);
-	CPrintToChatAll("%s VoteCastNo: team: %d, entityid: %d", TAG, iTeam, iEntityid);
+	log(false, "[Event_VoteCastNo] team: %d, entityid: %d", iTeam, iEntityid);
+	CPrintToChatAll("%s [Event_VoteCastNo] team: %d, entityid: %d", TAG, iTeam, iEntityid);
 }
 
 /*
@@ -309,7 +370,7 @@ public Action Message_VoteStart(UserMsg hMsg_id, BfRead hBf, const int[] iPlayer
 	hdataPack.WriteString(sParam1);
 	hdataPack.WriteString(sInitiatorName);
 
-	log(false, "VoteStart(sent to %d users): team: %d, initiator: %d, issue: %s, param1: %s, initiatorName: %s", iPlayersNum, iTeam, iInitiator, sIssue, sParam1, sInitiatorName);
+	log(false, "[Message_VoteStart] Sent to %d users: team: %d, initiator: %d, issue: %s, param1: %s, initiatorName: %s", iPlayersNum, iTeam, iInitiator, sIssue, sParam1, sInitiatorName);
 	return Plugin_Continue;
 }
 
@@ -360,7 +421,7 @@ public Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers
 	hdataPack.WriteString(sIssue);
 	hdataPack.WriteString(sParam1);
 
-	log(false, "VotePass(sent to %d users): team: %d, issue: %s, param1: %s", iPlayersNum, iTeam, sIssue, sParam1);
+	log(false, "[Message_VotePass] Sent to %d users: team: %d, issue: %s, param1: %s", iPlayersNum, iTeam, sIssue, sParam1);
 	return Plugin_Continue;
 }
 
@@ -405,7 +466,7 @@ public Action Message_VoteFail(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers
 	hdataPack.WriteString(sIssue);
 	hdataPack.WriteString(sParam1);
 
-	log(false, "VotePass(sent to %d users): team: %d, issue: %s, param1: %s", iPlayersNum, iTeam, sIssue, sParam1);
+	log(false, "[Message_VoteFail] Sent to %d users: team: %d, issue: %s, param1: %s", iPlayersNum, iTeam, sIssue, sParam1);
 	return Plugin_Continue;
 }
 
@@ -447,7 +508,7 @@ public Action Message_CallVoteFailed(UserMsg hMsg_id, BfRead hBf, const int[] iP
 	hdataPack.WriteCell(iTime);
 	hdataPack.WriteCell(iBytesLeft);
 
-	log(false, "CallVoteFailed(sent to %d users): reason: %d, time: %d, bytes: %d", iPlayersNum, iReason, iTime, iBytesLeft);
+	log(false, "[Message_CallVoteFailed] Sent to %d users: reason: %d, time: %d, bytes: %d", iPlayersNum, iReason, iTime, iBytesLeft);
 	return Plugin_Continue;
 }
 
@@ -480,7 +541,7 @@ public Action Message_VoteRegistered(UserMsg hMsg_id, BfRead hBf, const int[] iP
 	hdataPack.WriteCell(iPlayersNum);
 	hdataPack.WriteCell(iItem);
 
-	log(false, "VoteRegistered(sent to %d users): item: %d", iPlayersNum, iItem);
+	log(false, "[Message_VoteRegistered] Sent to %d users: item: %d", iPlayersNum, iItem);
 	return Plugin_Continue;
 }
 
@@ -512,8 +573,8 @@ public Action Listener_Vote(int iClient, const char[] sCommand, int iArgc)
 	char sVote[255];
 	GetCmdArg(1, sVote, 255);
 
-	CPrintToChatAll("%s Vote: client: %N, vote: %s", TAG, iClient, sVote);
-	log(false, "Vote: client: %N, vote: %s", iClient, sVote);
+	log(false, "[Listener_Vote] client: %N, vote: %s", iClient, sVote);
+	CPrintToChatAll("%s [Listener_Vote] client: %N, vote: %s", TAG, iClient, sVote);
 	return Plugin_Continue;
 }
 
@@ -537,7 +598,8 @@ public Action Listener_CallVote(int iClient, const char[] sCommand, int iArgc)
 	GetCmdArg(1, sVoteType, sizeof(sVoteType));
 	GetCmdArg(2, sVoteArgument, sizeof(sVoteArgument));
 
-	CPrintToChatAll("%s CallVote: client: %N, votetype: %s, sVoteArgument: %s", TAG, iClient, sVoteType, sVoteArgument);
-	log(false, "CallVote: client: %N, votetype: %s, sVoteArgument: %s", iClient, sVoteType, sVoteArgument);
+
+	log(false, "[Listener_CallVote] client: %N, votetype: %s, sVoteArgument: %s", iClient, sVoteType, sVoteArgument);
+	CPrintToChatAll("%s [Listener_CallVote] client: %N, votetype: %s, sVoteArgument: %s", TAG, iClient, sVoteType, sVoteArgument);
 	return Plugin_Continue;
 }

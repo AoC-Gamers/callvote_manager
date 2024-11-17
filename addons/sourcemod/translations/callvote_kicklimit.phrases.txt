@@ -20,6 +20,18 @@
 	{
 		"en"		"Table created {green}successfully{default}."
 	}
+	"SQLDisabled"
+	{
+		"en"		"SQL {red}disabled{default}."
+	}
+	"DBNoConnect"
+	{
+		"en"		"{red}Could not{default} connect to database."
+	}
+	"BlockUserConsole"
+	{
+		"en"		"This command can only be executed by a player."
+	}
 	"KickReached"
 	{
 		"en"		"The limit for {green}kicking{default} calls has been reached ({red}%d{default}/{olive}%d{default})"

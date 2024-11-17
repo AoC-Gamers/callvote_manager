@@ -13,7 +13,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION "1.4.2"
+#define PLUGIN_VERSION "1.5.0"
 
 enum CampaignCode
 {
@@ -48,6 +48,16 @@ char sCampaignCode[CampaignCode_size][] = {
 	"l4d2c11",
 	"l4d2c12",
 	"l4d2c13"
+};
+
+stock char sTypeVotes[TypeVotes_Size][] = {
+	"ChangeDifficulty",
+	"RestartGame",
+	"Kick",
+	"ChangeMission",
+	"ReturnToLobby",
+	"ChangeChapter",
+	"ChangeAllTalk"
 };
 
 ConVar
@@ -100,6 +110,7 @@ GlobalForward
 /*****************************************************************
 			P L U G I N   I N F O
 *****************************************************************/
+
 public Plugin myinfo =
 {
 	name		= "Call Vote Manager",
@@ -107,7 +118,6 @@ public Plugin myinfo =
 	description = "Manage call vote system",
 	version		= PLUGIN_VERSION,
 	url			= "https://github.com/lechuga16/callvote_manager"
-
 }
 
 /*****************************************************************
@@ -151,31 +161,26 @@ public void OnPluginStart()
 	LoadTranslation("callvote_manager.phrases");
 	CreateConVar("sm_cvm_version", PLUGIN_VERSION, "Plugin version", FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD);
 
-	g_cvarDebug								= CreateConVar("sm_cvm_debug", "0", "Debug messagess", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarEnable							= CreateConVar("sm_cvm_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarLog								= CreateConVar("sm_cvm_log", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
-	g_cvarBuiltinVote						= CreateConVar("sm_cvm_builtinvote", "1", "<builtinvotes> support", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarAnnouncer							= CreateConVar("sm_cvm_announcer", "1", "Announce voting calls", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarProgress							= CreateConVar("sm_cvm_progress", "1", "Show voting progress", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarProgressAnony						= CreateConVar("sm_cvm_progressanony", "0", "Show voting progress anonymously", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarDebug			= CreateConVar("sm_cvm_debug", "0", "Debug messagess", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarEnable		= CreateConVar("sm_cvm_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarLog			= CreateConVar("sm_cvm_log", "0", "logging flags <dificulty:1, restartgame:2, kick:4, changemission:8, lobby:16, chapter:32, alltalk:64, ALL:127>", FCVAR_NOTIFY, true, 0.0, true, 127.0);
+	g_cvarBuiltinVote	= CreateConVar("sm_cvm_builtinvote", "1", "<builtinvotes> support", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarAnnouncer		= CreateConVar("sm_cvm_announcer", "1", "Announce voting calls", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarProgress		= CreateConVar("sm_cvm_progress", "1", "Show voting progress", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarProgressAnony = CreateConVar("sm_cvm_progressanony", "0", "Show voting progress anonymously", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
-	g_cvarLobby								= CreateConVar("sm_cvm_lobby", "1", "Enable vote ReturnToLobby", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarChapter							= CreateConVar("sm_cvm_chapter", "1", "Enable vote ChangeChapter", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarAllTalk							= CreateConVar("sm_cvm_alltalk", "1", "Enable vote ChangeAllTalk", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarLobby			= CreateConVar("sm_cvm_lobby", "1", "Enable vote ReturnToLobby", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarChapter		= CreateConVar("sm_cvm_chapter", "1", "Enable vote ChangeChapter", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarAllTalk		= CreateConVar("sm_cvm_alltalk", "1", "Enable vote ChangeAllTalk", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
 	// ConVar that refer to the kick vote call
-	g_cvarAdminInmunity						= CreateConVar("sm_cvm_admininmunity", "", "Admins are immune to kick votes. Specify admin flags or blank.", FCVAR_NOTIFY);
-	g_cvarVipInmunity						= CreateConVar("sm_cvm_vipinmunity", "", "Vips are immune to kick votes, Specify admin flags or blank.", FCVAR_NOTIFY);
-	g_cvarSTVInmunity						= CreateConVar("sm_cvm_stvinmunity", "1", "SourceTV is immune to votekick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarSelfInmunity						= CreateConVar("sm_cvm_selfinmunity", "1", "Immunity to self-kick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cvarBotInmunity						= CreateConVar("sm_cvm_botinmunity", "1", "Immunity to bots", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarAdminInmunity = CreateConVar("sm_cvm_admininmunity", "", "Admins are immune to kick votes. Specify admin flags or blank.", FCVAR_NOTIFY);
+	g_cvarVipInmunity	= CreateConVar("sm_cvm_vipinmunity", "", "Vips are immune to kick votes, Specify admin flags or blank.", FCVAR_NOTIFY);
+	g_cvarSTVInmunity	= CreateConVar("sm_cvm_stvinmunity", "1", "SourceTV is immune to votekick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarSelfInmunity	= CreateConVar("sm_cvm_selfinmunity", "1", "Immunity to self-kick", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cvarBotInmunity	= CreateConVar("sm_cvm_botinmunity", "1", "Immunity to bots", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
-	sv_vote_issue_change_difficulty_allowed = FindConVar("sv_vote_issue_change_difficulty_allowed");
-	sv_vote_issue_restart_game_allowed		= FindConVar("sv_vote_issue_restart_game_allowed");
-	sv_vote_issue_change_mission_allowed	= FindConVar("sv_vote_issue_change_mission_allowed");
-	sv_vote_issue_kick_allowed				= FindConVar("sv_vote_issue_kick_allowed");
-	sv_vote_creation_timer					= FindConVar("sv_vote_creation_timer");
-	z_difficulty							= FindConVar("z_difficulty");
+	InitializeConVars();
 
 	char
 		sTempAdmin[32],
@@ -197,11 +202,22 @@ public void OnPluginStart()
 	HookEvent("vote_cast_no", Event_VoteCastNo);
 
 	AutoExecConfig(false, "callvote_manager");
+	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 
 	if (!g_bLateLoad)
 		return;
 
 	g_bBuiltinVotes = LibraryExists("BuiltinVotes");
+}
+
+void InitializeConVars()
+{
+	sv_vote_issue_change_difficulty_allowed = FindConVar("sv_vote_issue_change_difficulty_allowed");
+	sv_vote_issue_restart_game_allowed		= FindConVar("sv_vote_issue_restart_game_allowed");
+	sv_vote_issue_change_mission_allowed	= FindConVar("sv_vote_issue_change_mission_allowed");
+	sv_vote_issue_kick_allowed				= FindConVar("sv_vote_issue_kick_allowed");
+	sv_vote_creation_timer					= FindConVar("sv_vote_creation_timer");
+	z_difficulty							= FindConVar("z_difficulty");
 }
 
 public void ConVarChanged_AdminInmunity(Handle hConVar, const char[] sOldValue, const char[] sNewValue)
@@ -216,6 +232,11 @@ public void ConVarChanged_VipInmunity(Handle hConVar, const char[] sOldValue, co
 	char sTempVip[32];
 	g_cvarVipInmunity.GetString(sTempVip, sizeof(sTempVip));
 	g_iFlagsVip = ReadFlagString(sTempVip);
+}
+
+public void OnPluginEnd()
+{
+	OnPluginEnd_SQL();
 }
 
 public void OnConfigsExecuted()
@@ -323,10 +344,10 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 		Format(sDifficulty, sizeof(sDifficulty), "%t", sVoteArgument);
 
 		if (g_cvarLog.IntValue & VOTE_CHANGEDIFFICULTY)
-			log(false, "Caller %N | Vote %s - %s", iClient, sTypeVotes[ChangeDifficulty], sDifficulty);
+			logEx(false, "[Listener_CallVote] Caller %N | Vote %s - %s", iClient, sTypeVotes[ChangeDifficulty], sDifficulty);
 
 		if (g_cvarSQL.IntValue & VOTE_CHANGEDIFFICULTY)
-			sqllog(ChangeDifficulty, iClient);
+			logSQL(ChangeDifficulty, iClient);
 
 		announcer("%t", "ChangeDifficulty", iClient, sDifficulty);
 	}
@@ -355,10 +376,10 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 		}
 
 		if (g_cvarLog.IntValue & VOTE_RESTARTGAME)
-			log(false, "Caller %N | Vote %s", iClient, sTypeVotes[RestartGame]);
+			logEx(false, "[Listener_CallVote] Caller %N | Vote %s", iClient, sTypeVotes[RestartGame]);
 
 		if (g_cvarSQL.IntValue & VOTE_RESTARTGAME)
-			sqllog(RestartGame, iClient);
+			logSQL(RestartGame, iClient);
 
 		announcer("%t", "RestartGame", iClient);
 	}
@@ -423,10 +444,10 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 		}
 
 		if (g_cvarLog.IntValue & VOTE_KICK)
-			log(false, "Caller %N | Vote %s - %N", iClient, sTypeVotes[Kick], iTarget);
+			logEx(false, "[Listener_CallVote] Caller %N | Vote %s - %N", iClient, sTypeVotes[Kick], iTarget);
 
 		if (g_cvarSQL.IntValue & VOTE_KICK)
-			sqllog(Kick, iClient, iTarget);
+			logSQL(Kick, iClient, iTarget);
 
 		announcer("%t", "Kick", iClient, iTarget);
 	}
@@ -463,10 +484,10 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 			Format(sCampaign, sizeof(sCampaign), "%t", sCampaignCode[iCode]);
 
 		if (g_cvarLog.IntValue & VOTE_CHANGEMISSION)
-			log(false, "Caller %N | Vote %s - %s", iClient, sTypeVotes[ChangeMission], sVoteArgument);
+			logEx(false, "[Listener_CallVote] Caller %N | Vote %s - %s", iClient, sTypeVotes[ChangeMission], sVoteArgument);
 
 		if (g_cvarSQL.IntValue & VOTE_CHANGEMISSION)
-			sqllog(ChangeMission, iClient);
+			logSQL(ChangeMission, iClient);
 
 		announcer("%t", "ChangeMission", iClient, sCampaign);
 	}
@@ -495,10 +516,11 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 		}
 
 		if (g_cvarLog.IntValue & VOTE_RETURNTOLOBBY)
-			log(false, "Caller %N | Vote %s", iClient, sTypeVotes[ReturnToLobby]);
+			logEx(false, "[Listener_CallVote] Caller %N | Vote %s", iClient, sTypeVotes[ReturnToLobby]);
 
 		if (g_cvarSQL.IntValue & VOTE_RETURNTOLOBBY)
-			sqllog(ReturnToLobby, iClient);
+			logSQL(ReturnToLobby, iClient);
+		
 		announcer("%t", "ReturnToLobby", iClient);
 	}
 	// ------------------------------------------------------------
@@ -526,10 +548,10 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 		}
 
 		if (g_cvarLog.IntValue & VOTE_CHANGECHAPTER)
-			log(false, "Caller %N | Vote %s - %s", iClient, sTypeVotes[ChangeChapter], sVoteArgument);
+			logEx(false, "[Listener_CallVote] Caller %N | Vote %s - %s", iClient, sTypeVotes[ChangeChapter], sVoteArgument);
 
 		if (g_cvarSQL.IntValue & VOTE_CHANGECHAPTER)
-			sqllog(ChangeChapter, iClient);
+			logSQL(ChangeChapter, iClient);
 
 		announcer("%t", "ChangeChapter", iClient, sVoteArgument);
 	}
@@ -555,10 +577,10 @@ Action Listener_CallVote(int iClient, const char[] sCommand, int iArgs)
 		}
 
 		if (g_cvarLog.IntValue & VOTE_CHANGEALLTALK)
-			log(false, "Caller %N | Vote %s", iClient, sTypeVotes[ChangeAllTalk]);
+			logEx(false, "[Listener_CallVote] Caller %N | Vote %s", iClient, sTypeVotes[ChangeAllTalk]);
 
 		if (g_cvarSQL.IntValue & VOTE_CHANGEALLTALK)
-			sqllog(ChangeAllTalk, iClient);
+			logSQL(ChangeAllTalk, iClient);
 
 		announcer("%t", "ChangeAllTalk", iClient);
 	}
@@ -610,12 +632,12 @@ int Native_CallVote_Reject(Handle plugin, int numParams)
  *	"entityid"		"long"	// entity id of the voter
  *
  */
-void Event_VoteCastYes(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+void Event_VoteCastYes(Event event, const char[] sEventName, bool bDontBroadcast)
 {
 	if (!g_cvarProgress.BoolValue)
 		return;
 
-	int iClient = hEvent.GetInt("entityid");
+	int iClient = event.GetInt("entityid");
 	if (!IsValidClientIndex(iClient))
 		return;
 
@@ -634,12 +656,12 @@ void Event_VoteCastYes(Event hEvent, const char[] sEventName, bool bDontBroadcas
  * "entityid"		"long"	// entity id of the voter
  *
  */
-void Event_VoteCastNo(Event hEvent, const char[] sEventName, bool bDontBroadcast)
+void Event_VoteCastNo(Event event, const char[] sEventName, bool bDontBroadcast)
 {
 	if (!g_cvarProgress.BoolValue)
 		return;
 
-	int iClient = hEvent.GetInt("entityid");
+	int iClient = event.GetInt("entityid");
 	if (!IsValidClientIndex(iClient))
 		return;
 
@@ -684,7 +706,7 @@ bool IsAdmin(const int client)
 		return false;
 
 	int iClientFlags = GetUserFlagBits(client);
-	log(true, "Checking %N flags: %d | Admin: %d", client, iClientFlags, g_iFlagsAdmin);
+	logEx(true, "[IsAdmin] Checking %N flags: %d | Admin: %d", client, iClientFlags, g_iFlagsAdmin);
 	return view_as<bool>((iClientFlags & g_iFlagsAdmin) || (iClientFlags & ADMFLAG_ROOT));
 }
 
@@ -699,7 +721,7 @@ bool IsVip(const int client)
 		return false;
 
 	int iClientFlags = GetUserFlagBits(client);
-	log(true, "Checking %N flags: %d | Vip: %d", client, iClientFlags, g_iFlagsVip);
+	logEx(true, "[IsVip] Checking %N flags: %d | Vip: %d", client, iClientFlags, g_iFlagsVip);
 	return view_as<bool>(iClientFlags & g_iFlagsVip);
 }
 
@@ -771,6 +793,36 @@ char[] TeamTranslation(L4DTeam Team)
 		default: Format(sBuffer, sizeof(sBuffer), "%t", "L4DTeam_Unassigned");
 	}
 	return sBuffer;
+}
+
+/*
+ * @brief: Print debug message to log file
+ * @param: sMessage - Message to print
+ * @param: any - Arguments
+ */
+stock void logEx(bool onlydebug, const char[] sMessage, any...)
+{
+	static int check = -1;
+	static char
+		sFilename[64],
+		sFormat[1024];
+	
+	VFormat(sFormat, sizeof(sFormat), sMessage, 3);
+	File file = OpenFile(g_sLogPath, "a+");
+
+	GetPluginFilename(null, sFilename, sizeof(sFilename));
+	if ((check = FindCharInString(sFilename, '/', true)) != -1 || (check = FindCharInString(sFilename, '\\', true)) != -1)
+		Format(sFilename, sizeof(sFilename), "%s", sFilename[check + 1]);
+
+	ReplaceString(sFilename, sizeof(sFilename), ".smx", "", false);
+	ReplaceString(sFilename, sizeof(sFilename), "callvote_", "", false);
+
+	if (g_cvarDebug.BoolValue && onlydebug)
+		LogToFileEx(g_sLogPath, "[Debug] [%s] %s", sFilename, sFormat);
+	else if (!onlydebug)
+		LogToFileEx(g_sLogPath, "[%s] %s", sFilename, sFormat);
+
+	delete file;
 }
 
 // =======================================================================================

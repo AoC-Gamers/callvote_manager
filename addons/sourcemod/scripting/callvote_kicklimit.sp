@@ -12,7 +12,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION "1.3.2"
+#define PLUGIN_VERSION "1.4.0"
 
 /**
  * Player profile.
@@ -90,7 +90,7 @@ public void OnPluginStart()
 	LoadTranslation("common.phrases");
 	CreateConVar("sm_cvkl_version", PLUGIN_VERSION, "Plugin version", FCVAR_REPLICATED | FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD);
 
-	g_cvarDebug		= CreateConVar("sm_cvkl_debug", "1", "Enable debug", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvarDebug		= CreateConVar("sm_cvkl_debug", "0", "Enable debug", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarEnable	= CreateConVar("sm_cvkl_enable", "1", "Enable plugin", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cvarLog		= CreateConVar("sm_cvkl_logs", "1", "Enable logging", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvarKickLimit = CreateConVar("sm_cvkl_kicklimit", "1", "Kick limit", FCVAR_NOTIFY, true, 0.0);
@@ -104,6 +104,7 @@ public void OnPluginStart()
 	OnPluginStart_SQL();
 
 	AutoExecConfig(false, "callvote_kicklimit");
+	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
 
 	if(!g_bLateLoad)
 		return;
@@ -115,13 +116,13 @@ Action Command_KickCount(int iClient, int sArgs)
 {
 	if (!g_cvarEnable.BoolValue)
 	{
-		CPrintToChat(iClient, "%t %t", "Tag", "PluginDisabled");
+		CReplyToCommand(iClient, "%t %t", "Tag", "PluginDisabled");
 		return Plugin_Handled;
 	}
 
 	if (sArgs < 1)
 	{
-		CPrintToChat(iClient, "%t %t sm_kicklimit <#userid|name>", "Tag", "Usage");
+		CReplyToCommand(iClient, "%t %t sm_kicklimit <#userid|name>", "Tag", "Usage");
 		return Plugin_Handled;
 	}
 
@@ -141,9 +142,9 @@ Action Command_KickCount(int iClient, int sArgs)
 		for (int i = 0; i < sTargetCount; i++)
 		{
 			if (sTargetList[i] == iClient)
-				CPrintToChat(iClient, "%t %t", "Tag", "KickLimit", g_Players[iClient].Kick, g_cvarKickLimit.IntValue);
+				CReplyToCommand(iClient, "%t %t", "Tag", "KickLimit", g_Players[iClient].Kick, g_cvarKickLimit.IntValue);
 			else
-				CPrintToChat(iClient, "%t %t", "Tag", "KickLimitTarget", sTargetName, g_Players[sTargetList[i]].Kick, g_cvarKickLimit.IntValue);
+				CReplyToCommand(iClient, "%t %t", "Tag", "KickLimitTarget", sTargetName, g_Players[sTargetList[i]].Kick, g_cvarKickLimit.IntValue);
 		}
 	}
 	else
@@ -157,6 +158,12 @@ Action Command_KickShow(int iClient, int sArgs)
 	if (!g_cvarEnable.BoolValue)
 	{
 		CPrintToChat(iClient, "%t %t", "Tag", "PluginDisabled");
+		return Plugin_Handled;
+	}
+
+	if (iClient == 0)
+	{
+		CReplyToCommand(iClient, "%t %t", "Tag", "BlockUserConsole");
 		return Plugin_Handled;
 	}
 
@@ -180,6 +187,23 @@ Action Command_KickShow(int iClient, int sArgs)
 		CPrintToChat(iClient, "%t %t", "Tag", "NoFound");
 
 	return Plugin_Handled;
+}
+
+public void OnPluginEnd()
+{
+	if (g_db == null)
+		return;
+
+	delete g_db;
+	log(true, "[OnPluginEnd] Database connection closed.");
+}
+
+public void OnConfigsExecuted()
+{
+	if (!g_cvarEnable.BoolValue)
+		return;
+
+	OnConfigsExecuted_SQL();
 }
 
 public void OnClientAuthorized(int iClient, const char[] sAuth)
@@ -208,6 +232,7 @@ public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
 	if (iVotes != Kick)
 		return;
 
+	log(true, "[CallVote_Start] Call KickVote Client:%N | Target:%N", iClient, iTarget);
 	if (g_cvarKickLimit.IntValue <= g_Players[iClient].Kick)
 	{
 		char sBuffer[128];
@@ -218,7 +243,6 @@ public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
 
 	g_iCaller = iClient;
 	g_Players[g_iCaller].Target = iTarget;
-	GetClientAuthId(iClient, AuthId_Steam2, g_Players[g_iCaller].ClientID, MAX_AUTHID_LENGTH);
 	GetClientAuthId(iTarget, AuthId_Steam2, g_Players[g_iCaller].TargetID, MAX_AUTHID_LENGTH);
 	return;
 }
@@ -247,13 +271,14 @@ Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int i
 	char sIssue[64];
 	hBf.ReadString(sIssue, 64);
 
-	if (!StrEqual(sIssue, "#L4D_vote_kick_player"))
-			return Plugin_Continue;
+	if((StrContains(sIssue, "kick", false) == -1))
+		return Plugin_Continue;
 
 	char sParam1[128];
 	hBf.ReadString(sParam1, 128);
 
 	g_Players[g_iCaller].Kick++;
+	log(true, "[Message_VotePass] Call Kick Sent from %N to %N, (%d/%d)", g_Players[g_iCaller].ClientID, g_Players[g_iCaller].TargetID, g_Players[g_iCaller].Kick, g_cvarKickLimit.IntValue);
 
 	if (g_cvarSQL.BoolValue)
 		sqlinsert(g_Players[g_iCaller].ClientID, g_Players[g_iCaller].TargetID);
@@ -281,7 +306,7 @@ Action Message_VoteFail(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int i
 	char sIssue[128];
 	hBf.ReadString(sIssue, 128);
 
-	if (StrEqual(sIssue, "#L4D_vote_kick_player"))
+	if((StrContains(sIssue, "kick", false) == -1))
 		return Plugin_Continue;
 
 	g_Players[g_iCaller].Target = 0;
@@ -301,6 +326,7 @@ void IsNewClient(int iClient)
 {
 	g_Players[iClient].Kick = 0;
 	g_Players[iClient].Target = 0;
+	GetClientAuthId(iClient, AuthId_Steam2, g_Players[iClient].ClientID, MAX_AUTHID_LENGTH);
 }
 
 /**
@@ -317,19 +343,21 @@ bool IsClientRegistred(int iClient, const char[] sAuth)
 		if (!g_Players[i].Kick)
 			continue;
 
-		if (StrEqual(g_Players[i].ClientID, sAuth, false))
-		{
-			if (i == iClient)
-				return true;
-			// Move the customer's saved data to their new ID
-			g_Players[iClient].Kick    = g_Players[i].Kick;
-			g_Players[iClient].Target = 0;
+		if (!StrEqual(g_Players[i].ClientID, sAuth, false))
+			continue;
 
-			// Clear the old ID
-			g_Players[i].Kick    = 0;
-			g_Players[i].Target = 0;
+		if (i == iClient)
 			return true;
-		}
+
+		// Move the customer's saved data to their new ID
+		g_Players[iClient].Kick    = g_Players[i].Kick;
+		g_Players[iClient].Target = 0;
+
+		// Clear the old ID
+		g_Players[i].Kick    = 0;
+		g_Players[i].Target = 0;
+		return true;
+
 	}
 	return false;
 }

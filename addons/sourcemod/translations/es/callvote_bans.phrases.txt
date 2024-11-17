@@ -40,6 +40,14 @@
 	{
 		"es"		"{red}No se pudo{default} conectar a la base de datos."
 	}
+	"DBTableNotExists"
+	{
+		"es"		"La base de datos {red}no{default} esta correctamente instalada."
+	}
+	"InvalidInput"
+	{
+		"es"		"Entrada {red}invalida{default}."
+	}
 	"PlayerAlreadyBanned"
 	{
 		"es"		"El jugador ya esta {red}baneado{default}."

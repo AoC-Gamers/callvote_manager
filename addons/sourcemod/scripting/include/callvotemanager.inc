@@ -36,7 +36,6 @@
 #define _callvotemanager_included
 
 #include <callvote_stock>
-#define MAX_REASON_LENGTH 512
 
 /**
  * Starts when a voting call begins, indicates the user who started it and the type of voting.

@@ -16,6 +16,14 @@
 	{
 		"en"		"Table created {green}successfully{default}."
 	}
+	"SQLDisabled"
+	{
+		"en"		"SQL {red}disabled{default}."
+	}
+	"DBNoConnect"
+	{
+		"en"		"{red}Could not{default} connect to database."
+	}
 	"TryAgain"
 	{
 		"en"		"A vote can't be called right now, try again in %is!"

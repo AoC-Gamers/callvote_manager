@@ -20,6 +20,18 @@
 	{
 		"es"		"Tabla creada {green}correctamente{default}."
 	}
+	"SQLDisabled"
+	{
+		"es"		"SQL {red}desactivado{default}."
+	}
+	"DBNoConnect"
+	{
+		"es"		"{red}No se pudo{default} conectar a la base de datos."
+	}
+	"BlockUserConsole"
+	{
+		"es"		"Este comando solo puede ser ejecutado por un jugador."
+	}
 	"KickReached"
 	{
 		"es"		"Se alcanzado el límite de llamadas para {green}expulsar{default} ({red}%d{default}/{olive}%d{default})"

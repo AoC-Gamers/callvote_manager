@@ -10,6 +10,9 @@
 ConVar
 	g_cvarSQL;
 
+char 
+	g_sTable[] = "callvote_kicklimit";
+
 /*****************************************************************
 			F O R W A R D   P U B L I C S
 *****************************************************************/
@@ -17,41 +20,83 @@ public void OnPluginStart_SQL()
 {
 	g_cvarSQL = CreateConVar("sm_cvkl_sql", "0", "Enables kick counter registration to the database, if disabled it uses local memory.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	RegAdminCmd("sm_cvkl_sql_install", Command_CreateSQL, ADMFLAG_ROOT, "Install SQL tables");
-
-	BuildPath(Path_SM, g_sLogPath, sizeof(g_sLogPath), DIR_CALLVOTE);
-	g_hDatabase = Connect("callvote");
 }
 
 Action Command_CreateSQL(int iClient, int iArgs)
 {
-	if (!g_cvarEnable.BoolValue)
-	{
-		CReplyToCommand(iClient, "%t %t", "Tag", "PluginDisabled");
-		return Plugin_Handled;
-	}
+    if (!g_cvarEnable.BoolValue)
+    {
+        CReplyToCommand(iClient, "%t %t", "Tag", "PluginDisabled");
+        return Plugin_Handled;
+    }
 
-	char sQuery[600];
-	Format(sQuery, sizeof(sQuery), "CREATE TABLE IF NOT EXISTS `callvote_kicklimit` ( \
-        `id` int(6) NOT NULL auto_increment, \
-        `authid` varchar(64) character set utf8 NOT NULL default '' COMMENT 'Client calling for a vote', \
-        `created` int(11) NOT NULL default '0' COMMENT 'Creation date in unix format', \
-        `authidTarget` varchar(64) character set utf8 NOT NULL default '' COMMENT 'Objective of a kick vote', \
-        PRIMARY KEY(`id`)) \
-		ENGINE = InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci");
+    if (!g_cvarSQL.BoolValue)
+    {
+        CReplyToCommand(iClient, "%t %t", "Tag", "SQLDisabled");
+        return Plugin_Handled;
+    }
 
-	if (!SQL_FastQuery(g_hDatabase, sQuery))
-	{
-		char sSQLError[255];
-		SQL_GetError(g_hDatabase, sSQLError, sizeof(sSQLError));
-		log(false, "SQL failed: %s", sSQLError);
-		log(false, "Query: %s", sQuery);
-		CReplyToCommand(iClient, "%t %t", "Tag", "DBQueryError");
-		return Plugin_Handled;
-	}
+    if (!g_bSQLConnected)
+    {
+        CReplyToCommand(iClient, "%t %t", "Tag", "DBNoConnect");
+        return Plugin_Handled;
+    }
 
-	CReplyToCommand(iClient, "%t %t", "Tag", "DBTableCreated");
-	log(true, "%t Tables have been created.", "Tag");
-	return Plugin_Handled;
+    char sQuery[600];
+
+    switch (g_SQLDriver)
+    {
+        case SQL_MySQL:
+        {
+            g_db.Format(sQuery, sizeof(sQuery),
+                "CREATE TABLE IF NOT EXISTS `%s` ( \
+                `id` INT AUTO_INCREMENT PRIMARY KEY, \
+                `authid` VARCHAR(64) NOT NULL DEFAULT '' COMMENT 'Client calling for a vote', \
+                `created` INT NOT NULL DEFAULT 0 COMMENT 'Creation date in UNIX format', \
+                `authidTarget` VARCHAR(64) NOT NULL DEFAULT '' COMMENT 'Objective of a kick vote' \
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci",
+                g_sTable);
+        }
+        case SQL_SQLite:
+        {
+            g_db.Format(sQuery, sizeof(sQuery),
+                "CREATE TABLE IF NOT EXISTS `%s` ( \
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT, \
+                `authid` TEXT NOT NULL DEFAULT '', \
+                `created` INTEGER NOT NULL DEFAULT 0, \
+                `authidTarget` TEXT NOT NULL DEFAULT '' \
+                )",
+                g_sTable);
+        }
+        default:
+        {
+            log(false, "[Command_CreateSQL] Unknown SQL driver.");
+            CReplyToCommand(iClient, "%t %t", "Tag", "UnknownSQLDriver");
+            return Plugin_Handled;
+        }
+    }
+
+    if (!SQL_FastQuery(g_db, sQuery))
+    {
+		logErrorSQL(g_db, sQuery, "Command_CreateSQL");
+        CReplyToCommand(iClient, "%t %t", "Tag", "DBQueryError");
+        return Plugin_Handled;
+    }
+
+    CReplyToCommand(iClient, "%t %t", "Tag", "DBTableCreated");
+    log(false, "[Command_CreateSQL] Table `%s` created successfully.", g_sTable);
+    return Plugin_Handled;
+}
+
+void OnConfigsExecuted_SQL()
+{
+	if (!g_cvarSQL.BoolValue)
+		return;
+
+	if (g_db != null)
+		return;
+
+	ConnectDB("callvote", g_sTable);
 }
 
 /*****************************************************************
@@ -59,48 +104,102 @@ Action Command_CreateSQL(int iClient, int iArgs)
 *****************************************************************/
 
 /**
- * Inserts a record into the `callvote_kicklimit` table in the database.
+ * Inserts a record into the database based on the current SQL driver.
  *
  * @param sClientID The authid of the client initiating the vote.
  * @param sTargetID The authid of the target player being voted to be kicked.
- * @return True if the record was successfully inserted, false otherwise.
  */
-bool sqlinsert(const char[] sClientID, const char[] sTargetID)
+void sqlinsert(const char[] sClientID, const char[] sTargetID)
 {
-	if (!g_cvarSQL.BoolValue)
-		return false;
+    if (!g_cvarSQL.BoolValue || !g_bSQLConnected || !g_bSQLTableExists)
+        return;
 
-	char sQuery[600];
-	FormatEx(sQuery, sizeof(sQuery), "INSERT INTO `callvote_kicklimit` (`authid`, `created`, `authidTarget`) VALUES ('%s', '%d', '%s')", sClientID, GetTime(), sTargetID);
+    char sQuery[600];
 
-	if (!SQL_FastQuery(g_hDatabase, sQuery))
-	{
-		char sError[255];
-		SQL_GetError(g_hDatabase, sError, sizeof(sError));
-		log(false, "Query failed: %s", sError);
-		log(false, "Query dump: %s", sQuery);
-		return false;
-	}
+    switch (g_SQLDriver)
+    {
+        case SQL_MySQL:
+        {
+            g_db.Format(sQuery, sizeof(sQuery),
+                "INSERT INTO `%s` (`authid`, `created`, `authidTarget`) VALUES ('%s', UNIX_TIMESTAMP(), '%s')",
+                g_sTable, sClientID, sTargetID);
+        }
+        case SQL_SQLite:
+        {
+            g_db.Format(sQuery, sizeof(sQuery),
+                "INSERT INTO `%s` (`authid`, `created`, `authidTarget`) VALUES ('%s', strftime('%%s', 'now'), '%s')",
+                g_sTable, sClientID, sTargetID);
+        }
+        default:
+        {
+            log(false, "[sqlinsert] Unknown SQL driver.");
+            return;
+        }
+    }
 
-	return true;
+    log(true, "[sqlinsert] Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
+	DataPack dp;
+   	g_db.Query(CallBack_SQLInsert, sQuery, dp);
+	dp.WriteString(sQuery);
+}
+
+public void CallBack_SQLInsert(Database db, DBResultSet results, const char[] error, any data)
+{
+	DataPack dp = view_as<DataPack>(data);
+
+    if (results == null)
+    {
+		char
+			sQuery[600];
+
+       	dp.Reset();
+        dp.ReadString(sQuery, sizeof(sQuery));
+		
+        log(false, "[CallBack_SQLInsert] SQL failed: %s", error);
+		log(false, "[CallBack_SQLInsert] Query dump: %s", sQuery);
+        return;
+    }
+
+	delete dp;
 }
 
 /**
- * Retrieves the count of kick votes for a specific client and SteamID within the last 24 hours.
+ * Retrieves the count of kick votes for a specific client within the last 24 hours.
  *
  * @param iClient The client index.
  * @param sSteamID The SteamID of the client.
  */
 void GetCountKick(int iClient, const char[] sSteamID)
 {
-	char sQuery[255];
+    char sQuery[255];
 
-	g_hDatabase.Format(sQuery, sizeof(sQuery), "SELECT COUNT(*) FROM callvote_kicklimit WHERE created >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY)) AND authid = '%s';", sSteamID);
-	g_hDatabase.Query(CallBack_GetCountKick, sQuery, GetClientUserId(iClient));
+    switch (g_SQLDriver)
+    {
+        case SQL_MySQL:
+        {
+            g_db.Format(sQuery, sizeof(sQuery),
+                "SELECT COUNT(*) FROM `%s` WHERE created >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY)) AND authid = '%s'",
+                g_sTable, sSteamID);
+        }
+        case SQL_SQLite:
+        {
+            g_db.Format(sQuery, sizeof(sQuery),
+                "SELECT COUNT(*) FROM `%s` WHERE created >= strftime('%%s', 'now', '-1 day') AND authid = '%s'",
+                g_sTable, sSteamID);
+        }
+        default:
+        {
+            log(false, "[GetCountKick] Unknown SQL driver.");
+            return;
+        }
+    }
+
+    log(true, "[GetCountKick] Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
+    g_db.Query(CallBack_GetCountKick, sQuery, GetClientUserId(iClient));
 }
 
 /**
- * Callback function for retrieving the count of kicks from the database.
+ * Callback function for retrieving the count of kick votes from the database.
  *
  * @param db The database connection.
  * @param results The result set containing the count of kicks.
@@ -109,21 +208,29 @@ void GetCountKick(int iClient, const char[] sSteamID)
  */
 public void CallBack_GetCountKick(Database db, DBResultSet results, const char[] error, any data)
 {
-	int iClient = GetClientOfUserId(data);
-	if (iClient == CONSOLE)
-		return;
+    if (results == null)
+    {
+        log(false, "[CallBack_GetCountKick] Error: %s", error);
+        return;
+    }
 
-	int iKick;
+    int iClient = GetClientOfUserId(data);
+    if (iClient == CONSOLE)
+        return;
 
-	if (results == null)
-		ThrowError("Error: %s", error);
+    int iKick = 0;
 
-	if (results.FetchRow())
-	{
-		iKick = results.FetchInt(0);
-	}
+    if (results.FetchRow())
+    {
+        iKick = results.FetchInt(0);
+    }
 
-	g_Players[iClient].Kick = iKick;
-	if (!iKick)
-		IsNewClient(iClient);
+    log(true, "[CallBack_GetCountKick] Client: %N | Kicks: %d", iClient, iKick);
+    if (iKick)
+    {
+        g_Players[iClient].Kick = iKick;
+        GetClientAuthId(iClient, AuthId_Steam2, g_Players[iClient].ClientID, MAX_AUTHID_LENGTH);
+    }
+    else
+        IsNewClient(iClient);
 }
