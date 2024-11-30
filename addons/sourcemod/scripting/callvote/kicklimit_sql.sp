@@ -138,9 +138,9 @@ void sqlinsert(const char[] sClientID, const char[] sTargetID)
     }
 
     log(true, "[sqlinsert] Driver: %s | Query: %s", g_SQLDriver == SQL_MySQL ? "MySQL" : "SQLite", sQuery);
-	DataPack dp;
-   	g_db.Query(CallBack_SQLInsert, sQuery, dp);
+	DataPack dp = new DataPack();
 	dp.WriteString(sQuery);
+   	g_db.Query(CallBack_SQLInsert, sQuery, dp);
 }
 
 public void CallBack_SQLInsert(Database db, DBResultSet results, const char[] error, any data)
@@ -157,6 +157,7 @@ public void CallBack_SQLInsert(Database db, DBResultSet results, const char[] er
 		
         log(false, "[CallBack_SQLInsert] SQL failed: %s", error);
 		log(false, "[CallBack_SQLInsert] Query dump: %s", sQuery);
+        delete dp;
         return;
     }
 

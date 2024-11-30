@@ -12,7 +12,7 @@
 			G L O B A L   V A R S
 *****************************************************************/
 
-#define PLUGIN_VERSION "1.4.0"
+#define PLUGIN_VERSION "1.4.1"
 
 /**
  * Player profile.
@@ -36,7 +36,8 @@ ConVar
 
 bool
 	g_bCallVoteManager,
-	g_bLateLoad = false;
+	g_bLateLoad = false,
+	g_bVoteKickInProgress = false; // We make sure that voting end events do not execute code twice.
 
 /*****************************************************************
 			L I B R A R Y   I N C L U D E S
@@ -100,6 +101,7 @@ public void OnPluginStart()
 
 	HookUserMessage(GetUserMessageId("VotePass"), Message_VotePass);
 	HookUserMessage(GetUserMessageId("VoteFail"), Message_VoteFail);
+	HookUserMessage(GetUserMessageId("CallVoteFailed"), MessageCallVoteFailed);
 
 	OnPluginStart_SQL();
 
@@ -244,6 +246,8 @@ public void CallVote_Start(int iClient, TypeVotes iVotes, int iTarget)
 	g_iCaller = iClient;
 	g_Players[g_iCaller].Target = iTarget;
 	GetClientAuthId(iTarget, AuthId_Steam2, g_Players[g_iCaller].TargetID, MAX_AUTHID_LENGTH);
+
+	g_bVoteKickInProgress = true;
 	return;
 }
 
@@ -265,30 +269,29 @@ Action Message_VotePass(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int i
 	if (!g_cvarEnable.BoolValue || !g_bCallVoteManager)
 		return Plugin_Continue;
 
-	if (g_iCaller == 0)
+	if (!g_bVoteKickInProgress)
 		return Plugin_Continue;
-
-	char sIssue[64];
-	hBf.ReadString(sIssue, 64);
-
-	if((StrContains(sIssue, "kick", false) == -1))
-		return Plugin_Continue;
-
-	char sParam1[128];
-	hBf.ReadString(sParam1, 128);
 
 	g_Players[g_iCaller].Kick++;
-	log(true, "[Message_VotePass] Call Kick Sent from %N to %N, (%d/%d)", g_Players[g_iCaller].ClientID, g_Players[g_iCaller].TargetID, g_Players[g_iCaller].Kick, g_cvarKickLimit.IntValue);
+	log(true, "[Message_VotePass] Call Kick Sent from %s to %s, (%d/%d)", g_Players[g_iCaller].ClientID, g_Players[g_iCaller].TargetID, g_Players[g_iCaller].Kick, g_cvarKickLimit.IntValue);
 
 	if (g_cvarSQL.BoolValue)
 		sqlinsert(g_Players[g_iCaller].ClientID, g_Players[g_iCaller].TargetID);
 
-	if (IsClientInGame(g_iCaller) && !IsFakeClient(g_iCaller))
-		CPrintToChat(g_iCaller, "%t %t", "Tag", "KickLimit", g_Players[g_iCaller].Kick, g_cvarKickLimit.IntValue);
+	CreateTimer(1.0, Timer_KickLimit, g_iCaller, TIMER_FLAG_NO_MAPCHANGE);
 
 	g_Players[g_iCaller].Target = 0;
-
+	g_bVoteKickInProgress = false;
 	return Plugin_Continue;
+}
+
+Action Timer_KickLimit(Handle hTimer)
+{
+	if (IsClientInGame(g_iCaller) && !IsFakeClient(g_iCaller))
+		CPrintToChat(g_iCaller, "%t %t", "Tag", "KickLimit", g_Players[g_iCaller].Kick, g_cvarKickLimit.IntValue);
+	
+	g_iCaller = 0;
+	return Plugin_Stop;
 }
 
 /*
@@ -303,13 +306,37 @@ Action Message_VoteFail(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int i
 	if (!g_cvarEnable.BoolValue || !g_bCallVoteManager)
 		return Plugin_Continue;
 
-	char sIssue[128];
-	hBf.ReadString(sIssue, 128);
-
-	if((StrContains(sIssue, "kick", false) == -1))
+	if (!g_bVoteKickInProgress)
 		return Plugin_Continue;
 
+	g_iCaller = 0;
 	g_Players[g_iCaller].Target = 0;
+	g_bVoteKickInProgress = false;
+	return Plugin_Continue;
+}
+
+/*
+CallVoteFailed
+    - Byte		Failure reason code (1-2, 5-15)
+    - Short		Time until new vote allowed for code 2
+
+message CCSUsrMsg_CallVoteFailed
+{
+	optional int32 reason = 1;
+	optional int32 time = 2;
+}
+*/
+public Action MessageCallVoteFailed(UserMsg hMsg_id, BfRead hBf, const int[] iPlayers, int iPlayersNum, bool bReliable, bool bInit)
+{
+	if (!g_cvarEnable.BoolValue || !g_bCallVoteManager)
+		return Plugin_Continue;
+
+	if (!g_bVoteKickInProgress)
+		return Plugin_Continue;
+
+	g_iCaller = 0;
+	g_Players[g_iCaller].Target = 0;
+	g_bVoteKickInProgress = false;
 	return Plugin_Continue;
 }
 
